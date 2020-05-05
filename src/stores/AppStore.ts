@@ -334,9 +334,6 @@ export class AppStore {
                     renderMode: CARTA.RenderMode.RASTER
                 };
 
-                // Clear existing tile cache if it exists
-                this.tileService.clearCompressedCache(fileId);
-
                 let newFrame = new FrameStore(this.preferenceStore, this.overlayStore, this.logStore, frameInfo, this.backendService);
 
                 // Place frame in frame array (replace frame with the same ID if it exists)
