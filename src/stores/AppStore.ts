@@ -93,6 +93,7 @@ export class AppStore {
 
     private appContainer: HTMLElement;
     private contourWebGLContext: WebGLRenderingContext;
+    private fileCounter = 0;
 
     public getAppContainer = (): HTMLElement => {
         return this.appContainer;
@@ -168,7 +169,7 @@ export class AppStore {
             AST.setPalette(this.darkTheme ? nightPalette : dayPalette);
             this.astReady = true;
             if (this.backendService.connectionStatus === ConnectionStatus.ACTIVE && !autoFileLoaded && fileSearchParam) {
-                this.addFrame(folderSearchParam, fileSearchParam, "", 0);
+                this.addFrame(folderSearchParam, fileSearchParam, "");
             }
         });
 
@@ -187,7 +188,7 @@ export class AppStore {
 
             if (this.astReady && fileSearchParam) {
                 autoFileLoaded = true;
-                this.addFrame(folderSearchParam, fileSearchParam, "", 0);
+                this.addFrame(folderSearchParam, fileSearchParam, "");
             }
             if (this.preferenceStore.autoLaunch) {
                 this.fileBrowserStore.showFileBrowser(BrowserMode.File);
@@ -309,10 +310,11 @@ export class AppStore {
         return this.spatialGroup.filter(f => f.contourConfig.enabled && f.contourConfig.visible);
     }
 
-    @action addFrame = (directory: string, file: string, hdu: string, fileId: number) => {
-        return new Promise<boolean>((resolve, reject) => {
+    @action addFrame = (directory: string, file: string, hdu: string) => {
+        return new Promise<number>((resolve, reject) => {
             this.fileLoading = true;
-            this.backendService.loadFile(directory, file, hdu, fileId, CARTA.RenderMode.RASTER).subscribe(ack => {
+
+            this.backendService.loadFile(directory, file, hdu, this.fileCounter, CARTA.RenderMode.RASTER).subscribe(ack => {
                 this.fileLoading = false;
                 let dimensionsString = `${ack.fileInfoExtended.width}\u00D7${ack.fileInfoExtended.height}`;
                 if (ack.fileInfoExtended.dimensions > 2) {
@@ -337,14 +339,8 @@ export class AppStore {
 
                 let newFrame = new FrameStore(this.preferenceStore, this.overlayStore, this.logStore, frameInfo, this.backendService);
 
-                // clear existing requirements for the frame
-                this.spectralRequirements.delete(ack.fileId);
-                this.spatialRequirements.delete(ack.fileId);
-                this.statsRequirements.delete(ack.fileId);
-                this.histogramRequirements.delete(ack.fileId);
-
                 // Place frame in frame array (replace frame with the same ID if it exists)
-                const existingFrameIndex = this.frames.findIndex(f => f.frameInfo.fileId === fileId);
+                const existingFrameIndex = this.frames.findIndex(f => f.frameInfo.fileId === ack.fileId);
                 if (existingFrameIndex !== -1) {
                     this.frames[existingFrameIndex].clearContours(false);
                     this.frames[existingFrameIndex] = newFrame;
@@ -375,12 +371,14 @@ export class AppStore {
                 }
 
                 this.fileBrowserStore.hideFileBrowser();
-                resolve(true);
+                resolve(ack.fileId);
             }, err => {
                 this.alertStore.showAlert(`Error loading file: ${err}`);
                 this.fileLoading = false;
                 reject(err);
             });
+
+            this.fileCounter++;
         });
     };
 
@@ -389,9 +387,7 @@ export class AppStore {
         if (this.animatorStore.animationState === AnimationState.PLAYING) {
             this.animatorStore.stopAnimation();
         }
-        const currentIdList = this.frames.map(frame => frame.frameInfo.fileId).sort((a, b) => a - b);
-        const newId = currentIdList.pop() + 1;
-        return this.addFrame(directory, file, hdu, newId);
+        return this.addFrame(directory, file, hdu);
     };
 
     @action openFile = (directory: string, file: string, hdu: string) => {
@@ -400,7 +396,7 @@ export class AppStore {
             this.animatorStore.stopAnimation();
         }
         this.removeAllFrames();
-        return this.addFrame(directory, file, hdu, 0);
+        return this.addFrame(directory, file, hdu);
     };
 
     @action closeFile = (frame: FrameStore, confirmClose: boolean = true) => {
@@ -450,6 +446,14 @@ export class AppStore {
             WidgetsStore.RemoveFrameFromRegionWidgets(this.widgetsStore.spectralProfileWidgets, fileId);
             WidgetsStore.RemoveFrameFromRegionWidgets(this.widgetsStore.stokesAnalysisWidgets, fileId);
 
+            // clear existing requirements for the frame
+            this.spectralRequirements.delete(fileId);
+            this.spatialRequirements.delete(fileId);
+            this.statsRequirements.delete(fileId);
+            this.histogramRequirements.delete(fileId);
+
+            this.tileService.handleFileClosed(fileId);
+
             if (this.backendService.closeFile(fileId)) {
                 frame.clearSpatialReference();
                 frame.clearSpectralReference();
@@ -484,8 +488,6 @@ export class AppStore {
                         this.clearSpectralReference();
                     }
                 }
-                this.tileService.handleFileClosed(fileId);
-
             }
         }
     };
