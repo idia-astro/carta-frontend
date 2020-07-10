@@ -415,7 +415,8 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
 
     private assembleLinePlotData(profile: Array<number>, type: StokesCoordinate): {
         dataset: Array<Point2D>,
-        border: Border
+        border: Border,
+        inRangeDataSize: number
     } {
         const frame = AppStore.Instance.activeFrame;
         if (profile && profile.length &&
@@ -424,6 +425,7 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             const channelValues = frame.channelValues;
             let border = this.calculateXYborder(channelValues, profile, true, type);
             let values: Array<{ x: number, y: number }> = [];
+            let inRangeDataSize = 0;
             for (let i = 0; i < channelValues.length; i++) {
                 const x = channelValues[i];
                 const y = profile[i];
@@ -432,16 +434,18 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
                     values.push({x: x, y: NaN});
                 } else {
                     values.push({x, y});
+                    inRangeDataSize ++;
                 }
             }
-            return {dataset: values, border};
+            return {dataset: values, border, inRangeDataSize};
         }
         return null;
     }
 
     private assembleScatterPlotData(qProfile: Array<number>, uProfile: Array<number>, type: StokesCoordinate): {
         dataset: Array<{ x: number, y: number, z: number }>,
-        border: Border
+        border: Border,
+        inRangeDataSize: number
     } {
         const frame = AppStore.Instance.activeFrame;
         if (qProfile && qProfile.length && uProfile && uProfile.length &&
@@ -453,6 +457,7 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             // centered origin and equal scaler
             let equalScalerBorder = this.resizeScatterData(border.xMin, border.xMax, border.yMin, border.yMax);
             this.widgetStore.scatterOutRangePointsZIndex = [];
+            let inRangeDataSize = 0;
             for (let i = 0; i < channelValues.length; i++) {
                 const x = qProfile[i];
                 const y = uProfile[i];
@@ -462,9 +467,11 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
                 // update line plot color array
                 if (x < border.xMin || x > border.xMax || y < border.yMin || y > border.yMax) {
                     this.widgetStore.scatterOutRangePointsZIndex.push(z);  
-                } 
+                }  else {
+                    inRangeDataSize ++;
+                }
             }
-            return {dataset: values, border: equalScalerBorder};
+            return {dataset: values, border: equalScalerBorder, inRangeDataSize: inRangeDataSize};
         }
         return null;
     }
@@ -590,14 +597,15 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
         quValues: { dataset: Array<{ x: number, y: number, z: number }>, border: Border },
         qProgress: number,
         uProgress: number,
-        iProgress: number
+        iProgress: number,
+        lineRangeDataSize: number,
+        scatterRangeDataSize: number
     } {
         const frame = AppStore.Instance.activeFrame;
         if (!frame) {
             return null;
         }
 
-        const fileId = frame.frameInfo.fileId;
         let compositeProfile: {
             qProfile: Array<number>,
             uProfile: Array<number>,
@@ -631,7 +639,9 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
                 quValues: quDic, 
                 qProgress: compositeProfile.qProgress, 
                 uProgress: compositeProfile.uProgress,
-                iProgress: compositeProfile.iProgress
+                iProgress: compositeProfile.iProgress,
+                lineRangeDataSize: qDic.inRangeDataSize,
+                scatterRangeDataSize: quDic.inRangeDataSize
             };
         }
         return null;
@@ -883,6 +893,22 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
                 piLinePlotProps.data = currentPlotData.piValues.dataset;
                 paLinePlotProps.data = currentPlotData.paValues.dataset;
                 quScatterPlotProps.data = currentPlotData.quValues.dataset;
+
+                // console.log(currentPlotData.qValues.dataset.length)
+                // console.log(currentPlotData.piValues.dataset.length)
+                // console.log(currentPlotData.paValues.dataset.length)
+                // console.log(currentPlotData.quValues.dataset.length)
+                // linePlotProps.inRangeDatasize = 0;
+                quLinePlotProps.inRangeDataSize = 0;
+                piLinePlotProps.inRangeDataSize = 0;
+                paLinePlotProps.inRangeDataSize = 0;
+                quScatterPlotProps.inRangeDataSize = 0;
+                if (currentPlotData?.lineRangeDataSize && currentPlotData?.scatterRangeDataSize) {
+                    quLinePlotProps.inRangeDataSize = currentPlotData.lineRangeDataSize;
+                    piLinePlotProps.inRangeDataSize = currentPlotData.lineRangeDataSize;
+                    paLinePlotProps.inRangeDataSize = currentPlotData.lineRangeDataSize;
+                    quScatterPlotProps.inRangeDataSize = currentPlotData.scatterRangeDataSize;
+                }
  
                 const lineOpacity = this.minProgress < 1.0 ? 0.15 + this.minProgress / 4.0 : 1.0;
                 quLinePlotProps.opacity = lineOpacity;

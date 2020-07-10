@@ -67,6 +67,7 @@ export class ScatterPlotComponentProps {
     zeroLineWidth?: number;
     cursorNearestPoint?: { x: number, y: number };
     updateChartArea?: (chartArea: ChartArea) => void;
+    inRangeDataSize?: number;
 }
 
 // Maximum time between double clicks
@@ -498,7 +499,12 @@ export class ScatterPlotComponent extends React.Component<ScatterPlotComponentPr
             if (wheelEvent.offsetX > chartArea.right || wheelEvent.offsetX < chartArea.left || wheelEvent.offsetY > chartArea.bottom || wheelEvent.offsetY < chartArea.top) {
                 return;
             }
-            const delta = wheelEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? wheelEvent.deltaY : wheelEvent.deltaY * lineHeight;
+            const delta = (wheelEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? wheelEvent.deltaY : wheelEvent.deltaY * lineHeight) / 2;
+
+            if (this.props?.inRangeDataSize <= 1 && delta < 0) {
+                return;
+            }
+
             let currentRangeX = this.props.xMax - this.props.xMin;
             const fractionX = (wheelEvent.offsetX - chartArea.left) / (chartArea.right - chartArea.left);
             const rangeChangeX = zoomSpeed * delta * currentRangeX;

@@ -348,6 +348,11 @@ export class SpectralProfilerComponent extends React.Component<WidgetProps> {
                 linePlotProps.data = currentPlotData.values;
                 // Opacity ranges from 0.15 to 0.40 when data is in progress, and is 1.0 when finished
                 linePlotProps.opacity = currentPlotData.progress < 1.0 ? 0.15 + currentPlotData.progress / 4.0 : 1.0;
+
+                linePlotProps.inRangeDataSize = 0;
+                if (currentPlotData?.values?.length) {
+                    linePlotProps.inRangeDataSize = currentPlotData.values.length;
+                }
                 
                 // set line color
                 let primaryLineColor = this.widgetStore.primaryLineColor.colorHex;

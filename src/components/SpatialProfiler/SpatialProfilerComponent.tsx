@@ -428,6 +428,11 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
                 const currentPlotData = this.plotData;
                 if (currentPlotData) {
                     linePlotProps.data = currentPlotData.values;
+                    
+                    linePlotProps.inRangeDataSize = 0;
+                    if (currentPlotData?.values?.length) {
+                        linePlotProps.inRangeDataSize = currentPlotData.values.length;
+                    }
 
                     // set line color
                     let primaryLineColor = this.widgetStore.primaryLineColor.colorHex;

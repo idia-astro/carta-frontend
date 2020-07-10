@@ -94,6 +94,7 @@ export class LinePlotComponentProps {
     multiColorSingleLineColors?: Array<string>;
     multiColorMultiLinesColors?: Map<string, Array<string>>;
     borderWidth?: number;
+    inRangeDataSize?: number;
 }
 
 // Maximum time between double clicks
@@ -441,7 +442,10 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
             if (wheelEvent.offsetX > chartArea.right || wheelEvent.offsetX < chartArea.left) {
                 return;
             }
-            const delta = wheelEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? wheelEvent.deltaY : wheelEvent.deltaY * lineHeight;
+            const delta = (wheelEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? wheelEvent.deltaY : wheelEvent.deltaY * lineHeight) / 2;
+            if (this.props?.inRangeDataSize <= 1 && delta < 0) {
+                return;
+            }
             const currentRange = this.props.xMax - this.props.xMin;
             const fraction = (wheelEvent.offsetX - chartArea.left) / (chartArea.right - chartArea.left);
             const rangeChange = zoomSpeed * delta * currentRange;
