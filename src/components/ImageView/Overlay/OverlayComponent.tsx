@@ -20,13 +20,13 @@ export class OverlayComponent extends React.Component<OverlayComponentProps> {
 
     componentDidMount() {
         if (this.canvas) {
-            this.renderCanvas();
+            requestAnimationFrame(this.renderCanvas);
         }
     }
 
     componentDidUpdate() {
         if (this.canvas) {
-            this.renderCanvas();
+            requestAnimationFrame(this.renderCanvas);
         }
     }
 
@@ -35,7 +35,7 @@ export class OverlayComponent extends React.Component<OverlayComponentProps> {
         this.canvas.height = this.props.overlaySettings.viewHeight * devicePixelRatio;
     }
 
-    renderCanvas = _.throttle(() => {
+    renderCanvas = () => {
         const settings = this.props.overlaySettings;
         const frame = this.props.frame;
         const pixelRatio = devicePixelRatio;
@@ -73,7 +73,10 @@ export class OverlayComponent extends React.Component<OverlayComponentProps> {
 
             AST.clearLastErrorMessage();
         }
-    }, 50);
+    };
+
+    renderCanvasMediumUpdate = _.throttle(this.renderCanvas, 25);
+    renderCanvasSlowUpdate = _.throttle(this.renderCanvas, 50);
 
     render() {
         const styleString = this.props.overlaySettings.styleString;
