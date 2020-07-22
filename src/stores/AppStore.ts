@@ -1542,7 +1542,7 @@ export class AppStore {
     // 2. Use a MobX "when" to wait until no tiles or contours are required
     // 3. Wait 25 ms to allow for re-rendering of tiles
     waitForImageData = async () => {
-        await this.delay(25);
+        await this.delay(AppStore.ImageChannelThrottleTime * 2);
         return new Promise(resolve => {
             when(() => {
                 const tilesLoading = this.tileService.remainingTiles > 0;
