@@ -282,7 +282,7 @@ export class PolygonRegionComponent extends React.Component<PolygonRegionCompone
                     strokeWidth={region.lineWidth}
                     opacity={region.isTemporary ? 0.5 : (region.locked ? 0.70 : 1)}
                     dash={[region.dashLength]}
-                    closed={!region.creating}
+                    closed={false}
                     listening={this.props.listening && !region.locked}
                     onClick={this.handleClick}
                     onDblClick={this.handleDoubleClick}
@@ -296,6 +296,7 @@ export class PolygonRegionComponent extends React.Component<PolygonRegionCompone
                     perfectDrawEnabled={false}
                     lineJoin={"round"}
                     draggable={true}
+                    tension={0.5}
                     points={pointArray}
                     hitStrokeWidth={NEW_ANCHOR_MAX_DISTANCE * 2}
                 />
