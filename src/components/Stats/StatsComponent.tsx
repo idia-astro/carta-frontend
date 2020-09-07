@@ -1,7 +1,7 @@
 import * as React from "react";
 import {observer} from "mobx-react";
 import {autorun, computed, observable} from "mobx";
-import {HTMLTable, NonIdealState} from "@blueprintjs/core";
+import {HTMLTable, NonIdealState, FormGroup, HTMLSelect, IOptionProps} from "@blueprintjs/core";
 import ReactResizeDetector from "react-resize-detector";
 import {CARTA} from "carta-protobuf";
 import {WidgetConfig, WidgetProps, HelpType, WidgetsStore, AppStore} from "stores";
@@ -19,7 +19,7 @@ export class StatsComponent extends React.Component<WidgetProps> {
             type: "stats",
             minWidth: 300,
             minHeight: 200,
-            defaultWidth: 325,
+            defaultWidth: 425,
             defaultHeight: 250,
             title: "Statistics",
             isCloseable: true,
@@ -112,8 +112,18 @@ export class StatsComponent extends React.Component<WidgetProps> {
         this.height = height;
     };
 
+    private handleStokesChanged = (changeEvent: React.ChangeEvent<HTMLSelectElement>) => {
+        const frame = this.widgetStore.effectiveFrame;
+        frame.setChannels(frame.requiredChannel, parseInt(changeEvent.target.value), true);
+    }
+
     public render() {
         const appStore = AppStore.Instance;
+        const hasStokes = this.widgetStore.effectiveFrame?.hasStokes;
+        const stokesOptions: IOptionProps[] = [];
+        if (hasStokes) {
+            this.widgetStore.effectiveFrame.stokesInfo.forEach( (stokes, index) => stokesOptions.push({value: index, label: stokes}) );
+        }
 
         let formContent;
         if (this.statsData) {
@@ -180,6 +190,9 @@ export class StatsComponent extends React.Component<WidgetProps> {
             <div className={className}>
                 <div className="stats-toolbar">
                     <RegionSelectorComponent widgetStore={this.widgetStore}/>
+                    <FormGroup label={"Stokes"} inline={true} disabled={!hasStokes}>
+                        <HTMLSelect value={hasStokes ? this.widgetStore.effectiveFrame.requiredStokes : 0} options={stokesOptions} onChange={this.handleStokesChanged} disabled={!hasStokes}/>
+                    </FormGroup>
                 </div>
                 <div className="stats-display">
                     {formContent}
