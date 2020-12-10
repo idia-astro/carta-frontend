@@ -1744,7 +1744,7 @@ export class AppStore {
     // 1. Wait 25 ms to allow other commands that may request new data to execute
     // 2. Use a MobX "when" to wait until the active frame's render has been completed
     // 3. Wait 25 ms to allow for image view to be re-rendered from completed buffer
-    waitForImageRender = async () => {
+    waitForImageData = async () => {
         // Allow time for re-render to complete
         await this.delay(25);
         return new Promise(resolve => {
