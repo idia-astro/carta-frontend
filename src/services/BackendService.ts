@@ -727,6 +727,7 @@ export class BackendService {
             return;
         } else if (event.data.byteLength < 8) {
             console.log("Unknown event format");
+            console.log(event.data);
             return;
         }
 

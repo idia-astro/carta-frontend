@@ -1740,23 +1740,21 @@ export class AppStore {
         });
     }
 
-    // Waits for image data to be ready. This consists of three steps:
+    // Waits for image render to be ready. This consists of three steps:
     // 1. Wait 25 ms to allow other commands that may request new data to execute
-    // 2. Use a MobX "when" to wait until no tiles or contours are required
-    // 3. Wait 25 ms to allow for re-rendering of tiles
-    waitForImageData = async () => {
+    // 2. Use a MobX "when" to wait until the active frame's render has been completed
+    // 3. Wait 25 ms to allow for image view to be re-rendered from completed buffer
+    waitForImageRender = async () => {
+        // Allow time for re-render to complete
         await this.delay(25);
         return new Promise(resolve => {
             when(() => {
-                const tilesLoading = this.tileService.remainingTiles > 0;
-                const contoursLoading = this.activeFrame && this.activeFrame.contourProgress >= 0 && this.activeFrame.contourProgress < 1;
-                return !tilesLoading && !contoursLoading;
+                return this.activeFrame?.renderComplete;
             }, async () => {
-                await this.delay(25);
                 resolve();
             });
         });
-    };
+    }
 
     fetchParameter = (val: any) => {
         if (val && val instanceof Map) {

@@ -15,6 +15,7 @@ export class RasterViewComponentProps {
 export class RasterViewComponent extends React.Component<RasterViewComponentProps> {
     private canvas: HTMLCanvasElement;
     private gl: WebGLRenderingContext;
+    private isCurrentRenderComplete: boolean = false;
 
     componentDidMount() {
         this.gl = TileWebGLService.Instance.gl;
@@ -34,6 +35,7 @@ export class RasterViewComponent extends React.Component<RasterViewComponentProp
         const frame = AppStore.Instance.activeFrame;
         const tileRenderService = TileWebGLService.Instance;
         if (frame && this.canvas && this.gl && tileRenderService.cmapTexture) {
+            frame.setRenderComplete(false);
             const histStokes = frame.renderConfig.stokes;
             const histChannel = frame.renderConfig.histogram ? frame.renderConfig.histogram.channel : undefined;
             if ((frame.renderConfig.useCubeHistogram || frame.channel === histChannel) && frame.stokes === histStokes) {
@@ -94,13 +96,19 @@ export class RasterViewComponent extends React.Component<RasterViewComponentProp
             this.gl.enable(WebGLRenderingContext.DEPTH_TEST);
             this.gl.clear(WebGLRenderingContext.COLOR_BUFFER_BIT | WebGLRenderingContext.DEPTH_BUFFER_BIT);
 
+            this.isCurrentRenderComplete = true;
             // Skip rendering if frame is hidden
             if (!frame.renderConfig.visible) {
+                frame.setRenderComplete(true);
                 return;
             }
             if (frame.renderType === RasterRenderType.TILED) {
                 this.renderTiledCanvas();
             }
+
+            frame.setRenderComplete(this.isCurrentRenderComplete);
+        } else {
+            frame.setRenderComplete(true);
         }
     }
 
@@ -150,6 +158,8 @@ export class RasterViewComponent extends React.Component<RasterViewComponentProp
             if (rasterTile) {
                 this.renderTile(tile, rasterTile, mip);
             } else {
+                // At least one tile cache miss in this frame
+                this.isCurrentRenderComplete = false;
                 // Add high-res placeholders
                 if (numPlaceholderLayersHighRes > 0 && mip >= 2) {
                     highResPlaceholders.push({

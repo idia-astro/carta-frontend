@@ -96,6 +96,7 @@ export class FrameStore {
 
     @observable isRequestingMoments: boolean;
     @observable requestingMomentsProgress: number;
+    @observable renderComplete: boolean;
 
     @computed get regionSet(): RegionSetStore {
         if (this.spatialReference) {
@@ -707,6 +708,7 @@ export class FrameStore {
 
         this.isRequestingMoments = false;
         this.requestingMomentsProgress = 0;
+        this.renderComplete = false;
 
         // synchronize AST overlay's color/grid/label with preference when frame is created
         const astColor = preferenceStore.astColor;
@@ -1640,4 +1642,8 @@ export class FrameStore {
         this.setIsRequestingMoments(false);
         this.updateRequestingMomentsProgress(0);
     };
+
+    @action setRenderComplete = (complete:boolean) => {
+        this.renderComplete = complete;
+    }
 }
