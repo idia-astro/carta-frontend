@@ -5,7 +5,7 @@ import {action, autorun, computed, makeObservable, observable} from "mobx";
 import {observer} from "mobx-react";
 import {Colors, NonIdealState} from "@blueprintjs/core";
 import ReactResizeDetector from "react-resize-detector";
-import {LinePlotComponent, LinePlotComponentProps, PlotType, ProfilerInfoComponent, VERTICAL_RANGE_PADDING, SmoothingType} from "components/Shared";
+import {LinePlotComponent, LinePlotComponentProps, LineGLPlotComponent, LineGLPlotComponentProps, PlotType, ProfilerInfoComponent, VERTICAL_RANGE_PADDING, SmoothingType} from "components/Shared";
 import {TickType, MultiPlotProps} from "../Shared/LinePlot/PlotContainer/PlotContainerComponent";
 import {AppStore, ASTSettingsString, DefaultWidgetConfig, FrameStore, HelpType, OverlayStore, SpatialProfileStore, WidgetProps, WidgetsStore} from "stores";
 import {SpatialProfileWidgetStore} from "stores/widgets";
@@ -320,7 +320,6 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
         if (!this.frame || !this.profileStore) {
             return v;
         }
-
         // Cache all formatted values
         if (i === 0) {
             this.calculateFormattedValues(values);
@@ -375,7 +374,9 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
 
         const imageName = (appStore.activeFrame ? appStore.activeFrame.frameInfo.fileInfo.name : undefined);
 
-        let linePlotProps: LinePlotComponentProps = {
+        let linePlotProps: LineGLPlotComponentProps = {
+            width: this.width,
+            height: this.height,
             xLabel: `${isXProfile ? "X" : "Y"} coordinate`,
             yLabel: "Value",
             darkMode: appStore.darkTheme,
@@ -391,10 +392,12 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
             scrollZoom: true,
             mouseEntered: this.widgetStore.setMouseMoveIntoLinePlots,
             zeroLineWidth: 2,
-            borderWidth: this.widgetStore.lineWidth,
+            lineWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
             multiPlotPropsMap: new Map(),
-            order: 1
+            order: 1,
+            fixedRangeX: false,
+            fixedRangeY: true,
         };
 
         if (appStore.activeFrame) {
@@ -516,7 +519,7 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
             <div className={"spatial-profiler-widget"}>
                 <div className="profile-container">
                     <div className="profile-plot">
-                        <LinePlotComponent {...linePlotProps}/>
+                        <LineGLPlotComponent {...linePlotProps}/>
                     </div>
                     <ProfilerInfoComponent info={this.genProfilerInfo()}/>
                 </div>
