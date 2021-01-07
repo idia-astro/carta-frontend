@@ -46,33 +46,19 @@ enum LinePlotSelectingMode {
 }
 
 export class LineGLPlotComponentProps {
-    width: number;
-    height: number;
-    data?: { x: number, y: number, z?: number }[];
     comments?: string[];
-    xMin?: number;
-    xMax?: number;
-    yMin?: number;
-    yMax?: number;
-    xLabel?: string;
-    yLabel?: string;
     logY?: boolean;
-    lineColor?: string;
     opacity?: number;
-    darkMode?: boolean;
     imageName?: string;
     plotName?: string;
-    tickTypeX?: TickType;
-    tickTypeY?: TickType;
     markers?: LineMarker[];
+
     showTopAxis?: boolean;
     topAxisTickFormatter?: (value: number, index: number, values: number[]) => string | number;
+
     graphClicked?: (x: number) => void;
     graphRightClicked?: (x: number) => void;
-    graphZoomedX?: (xMin: number, xMax: number) => void;
-    graphZoomedY?: (yMin: number, yMax: number) => void;
     graphZoomedXY?: (xMin: number, xMax: number, yMin: number, yMax: number) => void;
-    graphZoomReset?: () => void;
     graphCursorMoved?: (x: number) => void;
     scrollZoom?: boolean;
     showXAxisTicks?: boolean;
@@ -96,8 +82,26 @@ export class LineGLPlotComponentProps {
     order?: number;
     multiPlotPropsMap?: Map<string, MultiPlotProps>;
     //
+    width: number;
+    height: number;
+    darkMode?: boolean; 
+    data?: { x: number, y: number, z?: number }[];
+    xMin?: number;
+    xMax?: number;
+    yMin?: number;
+    yMax?: number;
+    xLabel?: string;
+    yLabel?: string;
+    lineColor?: string;
+    tickTypeX: TickType;
+    tickTypeY: TickType;
     fixedRangeY: boolean;
     fixedRangeX: boolean;
+    showSpikeY: boolean;
+    showSpikeX: boolean;
+    graphZoomedX: (xMin: number, xMax: number) => void;
+    graphZoomedY: (yMin: number, yMax: number) => void;
+    graphZoomReset: () => void;
 }
 
 @observer
@@ -145,12 +149,21 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
     public render() {
         const props = this.props;
         const scale = 1 / devicePixelRatio;
-        console.log(this.props)
+        // console.log(this.props)
         const fontFamily = "'Helvetica Neue', 'Helvetica', 'Arial', sans-serif";
         let themeColor = Colors.LIGHT_GRAY5;
         let lableColor = Colors.GRAY1;
         let gridColor = Colors.LIGHT_GRAY1;
         let markerColor = Colors.GRAY2;
+        let plotlyContainerClass = "line-GL-plot"
+
+        if (this.props.darkMode) {
+            gridColor = Colors.DARK_GRAY5;
+            lableColor = Colors.LIGHT_GRAY5;
+            themeColor = Colors.DARK_GRAY3;
+            markerColor = Colors.GRAY4;
+            plotlyContainerClass = "line-GL-plot-dark";
+        }
 
         let layout: Partial<Plotly.Layout> = {
             width: props.width * devicePixelRatio, 
@@ -160,6 +173,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             hovermode: "closest" ,
             xaxis: {
                 title: props.xLabel,
+                // true will disable x axis range selection
                 fixedrange: this.props.fixedRangeX,
                 // ticktext:[],
                 // tickvals:[],
@@ -183,6 +197,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 linecolor: gridColor,
                 showline: true,
                 // indicator 
+                showspikes: this.props.showSpikeX,
                 spikemode: "across",
                 spikedash: "solid",
                 spikecolor: markerColor,
@@ -211,6 +226,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 mirror: true,
                 linecolor: gridColor,
                 showline: true,
+                showspikes: this.props.showSpikeY,
                 spikemode: "across",
                 spikedash: "solid",
                 spikecolor: markerColor,
@@ -236,9 +252,9 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
 
         const config: Partial<Plotly.Config> = {
             displaylogo: false,
-            scrollZoom: true,
+            scrollZoom: false,
             showTips: false,
-            doubleClick: false,
+            doubleClick: "autosize",
             showAxisDragHandles: true,
             modeBarButtonsToRemove: [
                 "zoomIn2d",
@@ -247,16 +263,17 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 "toggleSpikelines",
                 "hoverClosestCartesian",
                 "hoverCompareCartesian",
+                "lasso2d",
+                "select2d"
             ],
         };
 
         return (
-            <div className="line-GL-plot">
+            <div className={plotlyContainerClass} onWheelCapture={this.onWheelCaptured}>
                 <Plot
                     data={data}
                     layout={layout}
                     config={config}
-                    onDoubleClick={this.onDoubleClick}
                     onRelayout={this.onRelayout}
                     style={{transform: `scale(${scale})`, transformOrigin: "top left"}}
                 />
@@ -283,22 +300,31 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 return plotData;
             case PlotType.POINTS:
                 plotData.mode = "markers";
-                plotData.marker = {
-                    size: this.props.pointRadius * devicePixelRatio
-                }
+                plotData.marker.size = this.props.pointRadius * devicePixelRatio;
                 return plotData;
             default:
                 return plotData;
         }
     }
 
-    private onDoubleClick = () => {
-        this.props.graphZoomReset();
-    }
+    private onWheelCaptured = (event: React.WheelEvent<HTMLDivElement>) => {
+        if (event && event.nativeEvent && event.nativeEvent.type === "wheel") {
+            const wheelEvent = event.nativeEvent;
+            const lineHeight = 15;
+            const zoomSpeed = 0.001;
+            if (wheelEvent.offsetX > (this.props.width - 10) * devicePixelRatio|| wheelEvent.offsetX < 80 * devicePixelRatio) {
+                return;
+            }
+            const delta = wheelEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? wheelEvent.deltaY : wheelEvent.deltaY * lineHeight;
+            const currentRange = this.props.xMax - this.props.xMin;
+            const fraction = (wheelEvent.offsetX - 80 * devicePixelRatio) / ((this.props.width - 90) * devicePixelRatio);
+            const rangeChange = zoomSpeed * delta * currentRange;
+            this.props.graphZoomedX(this.props.xMin - rangeChange * fraction, this.props.xMax + rangeChange * (1 - fraction));
+        }
+    };
 
     private onRelayout = (event: Readonly<Plotly.PlotRelayoutEvent>) => {
-
-        if (!this.props.fixedRangeX && this.props.graphZoomedX) {
+        if (!this.props.fixedRangeX) {
             const xMin = event["xaxis.range[0]"];
             const xMax = event["xaxis.range[1]"];
             this.props.graphZoomedX(xMin, xMax);   
@@ -306,7 +332,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             this.props.graphZoomedX(undefined, undefined);
         }  
         
-        if (!this.props.fixedRangeY && this.props.graphZoomedY) {
+        if (!this.props.fixedRangeY) {
             const yMin = event["yaxis.range[0]"];
             const yMax = event["yaxis.range[1]"];
             this.props.graphZoomedY(yMin, yMax)

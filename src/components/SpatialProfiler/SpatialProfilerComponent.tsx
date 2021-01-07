@@ -373,10 +373,10 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
         const isXProfile = this.widgetStore.coordinate.indexOf("x") >= 0;
 
         const imageName = (appStore.activeFrame ? appStore.activeFrame.frameInfo.fileInfo.name : undefined);
-
+        
         let linePlotProps: LineGLPlotComponentProps = {
             width: this.width,
-            height: this.height,
+            height: this.height - 15,
             xLabel: `${isXProfile ? "X" : "Y"} coordinate`,
             yLabel: "Value",
             darkMode: appStore.darkTheme,
@@ -384,6 +384,7 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
             plotName: `${isXProfile ? "X" : "Y"} profile`,
             plotType: this.widgetStore.plotType,
             tickTypeY: TickType.Scientific,
+            tickTypeX: TickType.Integer,
             graphZoomedX: this.widgetStore.setXBounds,
             graphZoomedY: this.widgetStore.setYBounds,
             graphZoomedXY: this.widgetStore.setXYBounds,
@@ -397,7 +398,9 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
             multiPlotPropsMap: new Map(),
             order: 1,
             fixedRangeX: false,
-            fixedRangeY: true,
+            fixedRangeY: false,
+            showSpikeX: true,
+            showSpikeY: false
         };
 
         if (appStore.activeFrame) {
@@ -461,9 +464,9 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
                     }
 
                     // Use interpolated lines when decimating data to speed up rendering
-                    if (currentPlotData.values && currentPlotData.values.length > this.width * 1.5) {
-                        linePlotProps.plotType = PlotType.LINES;
-                    }
+                    // if (currentPlotData.values && currentPlotData.values.length > this.width * 1.5) {
+                    //     linePlotProps.plotType = PlotType.LINES;
+                    // }
                 }
 
                 const cursorX = {
