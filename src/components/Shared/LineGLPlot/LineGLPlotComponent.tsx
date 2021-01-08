@@ -51,7 +51,7 @@ export class LineGLPlotComponentProps {
     opacity?: number;
     imageName?: string;
     plotName?: string;
-    markers?: LineMarker[];
+    // markers?: LineMarker[];
 
     showTopAxis?: boolean;
     topAxisTickFormatter?: (value: number, index: number, values: number[]) => string | number;
@@ -102,6 +102,7 @@ export class LineGLPlotComponentProps {
     graphZoomedX: (xMin: number, xMax: number) => void;
     graphZoomedY: (yMin: number, yMax: number) => void;
     graphZoomReset: () => void;
+    markers?: Partial<Plotly.Shape>[];
 }
 
 @observer
@@ -243,6 +244,11 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             showlegend: false,
             // dragmode: widgetStore.dragmode,
         };
+
+        if (this.props.markers) {
+            layout.shapes = this.props.markers;
+        }
+
         let data;
         if (this.props.data) {
             data = this.LineGLData.data;
@@ -269,7 +275,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         };
 
         return (
-            <div className={plotlyContainerClass} onWheelCapture={this.onWheelCaptured}>
+            <div className={devicePixelRatio === 2? plotlyContainerClass : ""} onWheelCapture={this.onWheelCaptured}>
                 <Plot
                     data={data}
                     layout={layout}

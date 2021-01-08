@@ -5,7 +5,7 @@ import {action, autorun, computed, makeObservable, observable} from "mobx";
 import {observer} from "mobx-react";
 import {Colors, NonIdealState} from "@blueprintjs/core";
 import ReactResizeDetector from "react-resize-detector";
-import {LinePlotComponent, LinePlotComponentProps, LineGLPlotComponent, LineGLPlotComponentProps, PlotType, ProfilerInfoComponent, VERTICAL_RANGE_PADDING, SmoothingType} from "components/Shared";
+import {LineGLPlotComponent, LineGLPlotComponentProps, PlotType, ProfilerInfoComponent, VERTICAL_RANGE_PADDING, SmoothingType} from "components/Shared";
 import {TickType, MultiPlotProps} from "../Shared/LinePlot/PlotContainer/PlotContainerComponent";
 import {AppStore, ASTSettingsString, DefaultWidgetConfig, FrameStore, HelpType, OverlayStore, SpatialProfileStore, WidgetProps, WidgetsStore} from "stores";
 import {SpatialProfileWidgetStore} from "stores/widgets";
@@ -475,39 +475,58 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
                     unit: "px"
                 };
                 linePlotProps.markers = [{
-                    value: cursorX.image,
-                    id: "marker-image-cursor",
-                    draggable: false,
-                    horizontal: false,
+                    type: "line",
+                    x0: cursorX.image,
+                    y0: linePlotProps.yMin,
+                    x1: cursorX.image,
+                    y1: linePlotProps.yMax,
+                    line: {
+                      color: appStore.darkTheme ? Colors.RED4 : Colors.RED2,
+                      width: 1 * devicePixelRatio
+                    }
                 }];
-                linePlotProps.markers.push({
-                    value: cursorX.profiler,
-                    id: "marker-profiler-cursor",
-                    draggable: false,
-                    horizontal: false,
-                    color: appStore.darkTheme ? Colors.GRAY4 : Colors.GRAY2,
-                    opacity: 0.8,
-                    isMouseMove: true,
-                });
+
+                // linePlotProps.markers = [{
+                //     value: cursorX.image,
+                //     id: "marker-image-cursor",
+                //     draggable: false,
+                //     horizontal: false,
+                // }];
+                // linePlotProps.markers.push({
+                //     value: cursorX.profiler,
+                //     id: "marker-profiler-cursor",
+                //     draggable: false,
+                //     horizontal: false,
+                //     color: appStore.darkTheme ? Colors.GRAY4 : Colors.GRAY2,
+                //     opacity: 0.8,
+                //     isMouseMove: true,
+                // });
 
                 if (this.widgetStore.meanRmsVisible && currentPlotData && isFinite(currentPlotData.yMean) && isFinite(currentPlotData.yRms)) {
                     linePlotProps.markers.push({
-                        value: currentPlotData.yMean,
-                        id: "marker-mean",
-                        draggable: false,
-                        horizontal: true,
-                        color: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2,
-                        dash: [5]
+                        type: "rect",
+                        x0: linePlotProps.xMin,
+                        y0: clamp(currentPlotData.yMean - currentPlotData.yRms, linePlotProps.yMin, linePlotProps.yMax),
+                        x1: linePlotProps.xMax,
+                        y1: clamp(currentPlotData.yMean + currentPlotData.yRms, linePlotProps.yMin, linePlotProps.yMax),
+                        fillcolor: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2,
+                        opacity: 0.2,
+                        line: {
+                            width: 0
+                        }
                     });
 
                     linePlotProps.markers.push({
-                        value: currentPlotData.yMean,
-                        id: "marker-rms",
-                        draggable: false,
-                        horizontal: true,
-                        width: currentPlotData.yRms,
-                        opacity: 0.2,
-                        color: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2
+                        type: "line",
+                        x0: linePlotProps.xMin,
+                        y0: currentPlotData.yMean,
+                        x1: linePlotProps.xMax,
+                        y1: currentPlotData.yMean,
+                        line: {
+                          color: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2,
+                          width: 1 * devicePixelRatio,
+                          dash: "dash"
+                        }
                     });
                 }
 
