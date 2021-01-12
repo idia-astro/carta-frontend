@@ -316,15 +316,13 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
         return false;
     }
 
-    private formatProfileAst = (v: number, i: number, values: number[]) => {
+    private formatProfileAst = (values: number[]) => {
         if (!this.frame || !this.profileStore) {
-            return v;
+            return [];
         }
         // Cache all formatted values
-        if (i === 0) {
-            this.calculateFormattedValues(values);
-        }
-        return this.cachedFormattedCoordinates[i];
+        this.calculateFormattedValues(values);
+        return this.cachedFormattedCoordinates;
     };
 
     private genProfilerInfo = (): string[] => {
@@ -384,7 +382,7 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
             plotName: `${isXProfile ? "X" : "Y"} profile`,
             plotType: this.widgetStore.plotType,
             tickTypeY: TickType.Scientific,
-            tickTypeX: TickType.Integer,
+            tickTypeX: TickType.Automatic,
             graphZoomedX: this.widgetStore.setXBounds,
             graphZoomedY: this.widgetStore.setYBounds,
             graphZoomedXY: this.widgetStore.setXYBounds,
@@ -398,9 +396,7 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
             multiPlotPropsMap: new Map(),
             order: 1,
             fixedRangeX: false,
-            fixedRangeY: false,
-            showSpikeX: true,
-            showSpikeY: false
+            fixedRangeY: false
         };
 
         if (appStore.activeFrame) {
@@ -476,6 +472,7 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
                 };
                 linePlotProps.markers = [{
                     type: "line",
+                    layer: "above",
                     x0: cursorX.image,
                     y0: linePlotProps.yMin,
                     x1: cursorX.image,

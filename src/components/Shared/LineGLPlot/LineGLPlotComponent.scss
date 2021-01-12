@@ -1,7 +1,29 @@
-.line-GL-plot, .line-GL-plot-dark{
+.line-gl-plot-scale {
     .js-plotly-plot .plotly .modebar {
         transform: scale(2);
         top: 20px;
         right: 80px;
+    }
+}
+
+.line-gl-plot-scale-top-axis {
+    .js-plotly-plot .plotly .modebar {
+        transform: scale(2);
+        top: 70px;
+        right: 80px;
+    }
+}
+
+.line-gl-plot {
+    .js-plotly-plot .plotly .modebar {
+        top: 2px;
+        right: 2px;
+    }
+}
+
+.line-gl-plot-top-axis {
+    .js-plotly-plot .plotly .modebar {
+        top: 30px;
+        right: 2px ;
     }
 }

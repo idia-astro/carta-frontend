@@ -5,6 +5,7 @@ import {computed, makeObservable} from "mobx";
 import {observer} from "mobx-react";
 import {PlotType} from "components/Shared";
 import {Colors} from "@blueprintjs/core";
+import * as D3 from "d3";
 import "./LineGLPlotComponent.scss";
 
 enum TickType {
@@ -53,9 +54,6 @@ export class LineGLPlotComponentProps {
     plotName?: string;
     // markers?: LineMarker[];
 
-    showTopAxis?: boolean;
-    topAxisTickFormatter?: (value: number, index: number, values: number[]) => string | number;
-
     graphClicked?: (x: number) => void;
     graphRightClicked?: (x: number) => void;
     graphZoomedXY?: (xMin: number, xMax: number, yMin: number, yMax: number) => void;
@@ -97,12 +95,12 @@ export class LineGLPlotComponentProps {
     tickTypeY: TickType;
     fixedRangeY: boolean;
     fixedRangeX: boolean;
-    showSpikeY: boolean;
-    showSpikeX: boolean;
     graphZoomedX: (xMin: number, xMax: number) => void;
     graphZoomedY: (yMin: number, yMax: number) => void;
     graphZoomReset: () => void;
     markers?: Partial<Plotly.Shape>[];
+    showTopAxis?: boolean;
+    topAxisTickFormatter?: (values: number[]) => string[];
 }
 
 @observer
@@ -115,7 +113,6 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
     @computed get LineGLData() {
         let scatterDatasets: Plotly.Data[] = [];
         let trace1: Partial<Plotly.PlotData> = {};
-        // let trace2: Partial<Plotly.PlotData> = {};
         let marker: Partial<Plotly.PlotMarker> = {
             color: this.props.lineColor,
             opacity: 1
@@ -137,47 +134,60 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             const point = this.props.data[i];
             trace1.x[i] = point.x;
             trace1.y[i] = point.y;
-            // if (this.props.showTopAxis && this.props.topAxisTickFormatter) {
-                // trace2 = trace1;
-                // topAxisTick.push(this.props.topAxisTickFormatter(point.x, i, trace1.x as number[]))
-            // }
         }
         this.updateDataByPlotType(this.props.plotType, trace1);
         scatterDatasets.push(trace1);
+
+        // let trace2: Partial<Plotly.PlotData> = {};
+        // trace2.type = "scattergl";
+        // trace2.mode = "lines";
+        // trace2.hoverinfo = "none";
+        // trace2.xaxis = "x2";
+        // trace2.opacity = 1;
+        // trace2.x = trace1.x;
+        // trace2.y = trace1.y;
+        // scatterDatasets.push(trace2);
+
+        // scatterDatasets.push(trace1);
+
         return {data: scatterDatasets};
     }
 
+    @computed get tickVals() {
+        let ticks = D3.scale.linear().domain([this.props.xMin, this.props.xMax]).ticks();
+        const topAxisTick = this.props.topAxisTickFormatter(ticks);
+        return {ticks, topAxisTick}
+    }
+
     public render() {
-        const props = this.props;
         const scale = 1 / devicePixelRatio;
-        // console.log(this.props)
         const fontFamily = "'Helvetica Neue', 'Helvetica', 'Arial', sans-serif";
         let themeColor = Colors.LIGHT_GRAY5;
         let lableColor = Colors.GRAY1;
         let gridColor = Colors.LIGHT_GRAY1;
         let markerColor = Colors.GRAY2;
-        let plotlyContainerClass = "line-GL-plot"
+        let plotlyContainerScaleClass = "line-gl-plot-scale";
+        let plotlyContainerClass = "line-gl-plot";
 
         if (this.props.darkMode) {
             gridColor = Colors.DARK_GRAY5;
             lableColor = Colors.LIGHT_GRAY5;
             themeColor = Colors.DARK_GRAY3;
             markerColor = Colors.GRAY4;
-            plotlyContainerClass = "line-GL-plot-dark";
         }
 
+
+
         let layout: Partial<Plotly.Layout> = {
-            width: props.width * devicePixelRatio, 
-            height: props.height * devicePixelRatio,
+            width: this.props.width * devicePixelRatio, 
+            height: this.props.height * devicePixelRatio,
             paper_bgcolor: themeColor, 
             plot_bgcolor: themeColor,
             hovermode: "closest" ,
             xaxis: {
-                title: props.xLabel,
+                title: this.props.xLabel,
                 // true will disable x axis range selection
-                fixedrange: this.props.fixedRangeX,
-                // ticktext:[],
-                // tickvals:[],
+                fixedrange: false,
                 titlefont: {
                     family: fontFamily,
                     size: 12 * devicePixelRatio,
@@ -198,17 +208,17 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 linecolor: gridColor,
                 showline: true,
                 // indicator 
-                showspikes: this.props.showSpikeX,
+                showspikes: true,
                 spikemode: "across",
                 spikedash: "solid",
                 spikecolor: markerColor,
                 spikethickness: 1 * devicePixelRatio,
                 // d3 format
-                tickformat: LineGLPlotComponent.GetTickType(props.tickTypeX),
+                tickformat: LineGLPlotComponent.GetTickType(this.props.tickTypeX),
             },
             yaxis: {
-                title: props.yLabel,
-                fixedrange: this.props.fixedRangeY,
+                title: this.props.yLabel,
+                fixedrange: false,
                 titlefont: {
                     family: fontFamily,
                     size: 12 * devicePixelRatio,
@@ -227,12 +237,8 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 mirror: true,
                 linecolor: gridColor,
                 showline: true,
-                showspikes: this.props.showSpikeY,
-                spikemode: "across",
-                spikedash: "solid",
-                spikecolor: markerColor,
-                spikethickness: 1 * devicePixelRatio,
-                tickformat: LineGLPlotComponent.GetTickType(props.tickTypeY),
+                showspikes: false,
+                tickformat: LineGLPlotComponent.GetTickType(this.props.tickTypeY),
             },
             margin: {
                 t: 5 * devicePixelRatio,
@@ -242,18 +248,55 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 pad: 0
             },
             showlegend: false,
-            // dragmode: widgetStore.dragmode,
+            // dragmode: "drawline",
         };
 
         if (this.props.markers) {
             layout.shapes = this.props.markers;
+            layout.shapes[0]["editable"] = true;
+            // layout.shapes[0]["drawdirection"] = "horizontal";
+            // layout["newshape"]=this.props.markers;
         }
 
-        let data;
+        let data: Plotly.Data[];
         if (this.props.data) {
             data = this.LineGLData.data;
-            layout.xaxis.range = [props.xMin, props.xMax];
-            layout.yaxis.range = [props.yMin, props.yMax];
+            layout.xaxis.range = [this.props.xMin, this.props.xMax];
+            layout.yaxis.range = [this.props.yMin, this.props.yMax];
+
+            if(this.props.showTopAxis && this.props.topAxisTickFormatter) {
+                plotlyContainerScaleClass = "line-gl-plot-scale-top-axis";
+                plotlyContainerClass = "line-gl-plot-top-axis";
+                let trace2: Partial<Plotly.PlotData> = {};
+                let {ticks, topAxisTick} = this.tickVals;
+                layout.xaxis.tickvals = ticks;
+                layout.xaxis.ticktext = ticks.join().split(',');
+                // layout.xaxis.tickmode = "array";
+
+                trace2.type = "scattergl";
+                trace2.mode = "lines";
+                trace2.hoverinfo = "none";
+                trace2.xaxis = "x2";
+                trace2.opacity = 0;
+                trace2.x = data[0].x;
+                trace2.y = data[0].y;
+
+                let xaxis2: Partial<Plotly.LayoutAxis> = {
+                    side: "top",
+                    range: [this.props.xMin, this.props.xMax],
+                    tickvals: ticks,
+                    ticktext: topAxisTick,
+                    tickfont: layout.xaxis.tickfont,
+                    tickcolor: gridColor,
+                    gridcolor: gridColor,
+                    fixedrange: false,
+                    overlaying: "x",
+                    automargin: true
+                }
+                layout.xaxis2 = xaxis2;
+                data.push(trace2);
+                layout.margin.t = 30 * devicePixelRatio;
+            }
         }
 
         const config: Partial<Plotly.Config> = {
@@ -261,7 +304,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             scrollZoom: false,
             showTips: false,
             doubleClick: "autosize",
-            showAxisDragHandles: true,
+            showAxisDragHandles: false,
             modeBarButtonsToRemove: [
                 "zoomIn2d",
                 "zoomOut2d",
@@ -272,15 +315,22 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 "lasso2d",
                 "select2d"
             ],
+            // editable: true,
+            // edits: {
+            //     shapePosition: true
+            // }
         };
 
         return (
-            <div className={devicePixelRatio === 2? plotlyContainerClass : ""} onWheelCapture={this.onWheelCaptured}>
+            <div className={devicePixelRatio === 2? plotlyContainerScaleClass : plotlyContainerClass} onWheelCapture={this.onWheelCaptured}>
                 <Plot
                     data={data}
                     layout={layout}
                     config={config}
                     onRelayout={this.onRelayout}
+                    onRestyle={this.onClick}
+                    // onUpdate={this.onUpdate}
+                    // onHover={this.onHover}
                     style={{transform: `scale(${scale})`, transformOrigin: "top left"}}
                 />
             </div>
@@ -297,6 +347,18 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 return "";
         }
     }
+
+    private onClick = (event) => {
+        console.log(event)
+    }
+
+    // private onUpdate = (fig) => {
+    //     console.log(fig)
+    // }
+
+    // private onHover = (event) => {
+    //     console.log(event)
+    // }
 
     private updateDataByPlotType(type: PlotType ,plotData: Partial<Plotly.PlotData>): Partial<Plotly.PlotData> {
         switch (type) {
@@ -330,6 +392,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
     };
 
     private onRelayout = (event: Readonly<Plotly.PlotRelayoutEvent>) => {
+        console.log(event)
         if (!this.props.fixedRangeX) {
             const xMin = event["xaxis.range[0]"];
             const xMax = event["xaxis.range[1]"];
