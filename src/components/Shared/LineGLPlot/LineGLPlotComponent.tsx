@@ -1,11 +1,12 @@
 import * as React from "react";
 import * as Plotly from "plotly.js";
+import * as D3 from "d3";
 import Plot from "react-plotly.js";
 import {computed, makeObservable} from "mobx";
 import {observer} from "mobx-react";
 import {PlotType} from "components/Shared";
 import {Colors} from "@blueprintjs/core";
-import * as D3 from "d3";
+import {clamp} from "utilities";
 import "./LineGLPlotComponent.scss";
 
 enum TickType {
@@ -24,22 +25,6 @@ class MultiPlotProps {
     exportData?: Map<string, string>;
 }
 
-interface LineMarker {
-    value: number;
-    id: string;
-    color?: string;
-    opacity?: number;
-    dash?: number[];
-    label?: string;
-    horizontal: boolean;
-    width?: number;
-    draggable?: boolean;
-    dragCustomBoundary?: { xMin?: number, xMax?: number, yMin?: number, yMax?: number };
-    dragMove?: (val: number) => void;
-    isMouseMove?: boolean;
-    interactionMarker?: boolean;
-}
-
 enum LinePlotSelectingMode {
     BOX,
     HORIZONTAL,
@@ -52,7 +37,6 @@ export class LineGLPlotComponentProps {
     opacity?: number;
     imageName?: string;
     plotName?: string;
-    // markers?: LineMarker[];
 
     graphClicked?: (x: number) => void;
     graphRightClicked?: (x: number) => void;
@@ -71,7 +55,6 @@ export class LineGLPlotComponentProps {
     zIndex?: boolean;
     pointRadius?: number;
     zeroLineWidth?: number;
-    mouseEntered?: (value: boolean) => void;
     multiColorSingleLineColors?: Array<string>;
     multiColorMultiLinesColors?: Map<string, Array<string>>;
     lineWidth?: number;
@@ -98,9 +81,18 @@ export class LineGLPlotComponentProps {
     graphZoomedX: (xMin: number, xMax: number) => void;
     graphZoomedY: (yMin: number, yMax: number) => void;
     graphZoomReset: () => void;
+
     markers?: Partial<Plotly.Shape>[];
+    
     showTopAxis?: boolean;
     topAxisTickFormatter?: (values: number[]) => string[];
+    showImageMarke?: boolean;
+    cursorXImage?: number; 
+    meanRmsVisible?: boolean;
+    yMean?: number;
+    yRms?: number;
+    onHover: (x: number, y:number) => void;
+    mouseEntered?: (value: boolean) => void;
 }
 
 @observer
@@ -137,19 +129,6 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         }
         this.updateDataByPlotType(this.props.plotType, trace1);
         scatterDatasets.push(trace1);
-
-        // let trace2: Partial<Plotly.PlotData> = {};
-        // trace2.type = "scattergl";
-        // trace2.mode = "lines";
-        // trace2.hoverinfo = "none";
-        // trace2.xaxis = "x2";
-        // trace2.opacity = 1;
-        // trace2.x = trace1.x;
-        // trace2.y = trace1.y;
-        // scatterDatasets.push(trace2);
-
-        // scatterDatasets.push(trace1);
-
         return {data: scatterDatasets};
     }
 
@@ -184,6 +163,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             paper_bgcolor: themeColor, 
             plot_bgcolor: themeColor,
             hovermode: "closest" ,
+            shapes: [],
             xaxis: {
                 title: this.props.xLabel,
                 // true will disable x axis range selection
@@ -251,11 +231,58 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             // dragmode: "drawline",
         };
 
-        if (this.props.markers) {
-            layout.shapes = this.props.markers;
-            layout.shapes[0]["editable"] = true;
-            // layout.shapes[0]["drawdirection"] = "horizontal";
-            // layout["newshape"]=this.props.markers;
+        // if (this.props.markers) {
+        //     this.props.markers[0].y0 = this.props.yMin;
+        //     this.props.markers[0].y1 = this.props.yMax;
+        //     layout.shapes = this.props.markers;
+        //     layout.shapes[0]["editable"] = true;
+        //     // layout.shapes[0]["drawdirection"] = "horizontal";
+        //     // layout["newshape"]=this.props.markers;
+        // }
+
+        if (this.props.showImageMarke && this.props.cursorXImage) {
+            let cursorX: Partial<Plotly.Shape> = {
+                type: "line",
+                layer: "above",
+                x0: this.props.cursorXImage,
+                y0: this.props.yMin,
+                x1: this.props.cursorXImage,
+                y1: this.props.yMax,
+                line: {
+                  color: this.props.darkMode ? Colors.RED4 : Colors.RED2,
+                  width: 1 * devicePixelRatio
+                }
+            };
+            layout.shapes.push(cursorX);
+        }
+
+        if (this.props.meanRmsVisible && isFinite(this.props.yMean) && isFinite(this.props.yRms)) {
+            let yRms: Partial<Plotly.Shape> = {
+                type: "rect",
+                x0: this.props.xMin,
+                y0: clamp(this.props.yMean - this.props.yRms, this.props.yMin, this.props.yMax),
+                x1: this.props.xMax,
+                y1: clamp(this.props.yMean + this.props.yRms, this.props.yMin, this.props.yMax),
+                fillcolor: this.props.darkMode ? Colors.GREEN4 : Colors.GREEN2,
+                opacity: 0.2,
+                line: {
+                    width: 0
+                }
+            };
+
+            let yMean: Partial<Plotly.Shape> = {
+                type: "line",
+                x0: this.props.xMin,
+                y0: this.props.yMean,
+                x1: this.props.xMax,
+                y1: this.props.yMean,
+                line: {
+                  color: this.props.darkMode ? Colors.GREEN4 : Colors.GREEN2,
+                  width: 1 * devicePixelRatio,
+                  dash: "dash"
+                }
+            };
+            layout.shapes.push(yRms, yMean);
         }
 
         let data: Plotly.Data[];
@@ -322,15 +349,20 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         };
 
         return (
-            <div className={devicePixelRatio === 2? plotlyContainerScaleClass : plotlyContainerClass} onWheelCapture={this.onWheelCaptured}>
+            <div 
+                className={devicePixelRatio === 2? plotlyContainerScaleClass : plotlyContainerClass} 
+                onWheelCapture={this.onWheelCaptured} 
+                onMouseEnter={this.onMouseEnter} 
+                onMouseLeave={this.onMouseLeave}
+            >
                 <Plot
                     data={data}
                     layout={layout}
                     config={config}
                     onRelayout={this.onRelayout}
-                    onRestyle={this.onClick}
+                    // onRestyle={this.onClick}
                     // onUpdate={this.onUpdate}
-                    // onHover={this.onHover}
+                    onHover={this.onHover}
                     style={{transform: `scale(${scale})`, transformOrigin: "top left"}}
                 />
             </div>
@@ -348,17 +380,35 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         }
     }
 
-    private onClick = (event) => {
-        console.log(event)
-    }
-
-    // private onUpdate = (fig) => {
-    //     console.log(fig)
-    // }
-
-    // private onHover = (event) => {
+    // private onClick = (event) => {
     //     console.log(event)
     // }
+
+    // private onUpdate = (figure: Readonly<Figure>, graphDiv: Readonly<HTMLElement>) => {
+    //     console.log(figure);
+    //     figure.layout.shapes[0].y0 = this.props.yMin;
+    //     figure.layout.shapes[0].y1 = this.props.yMax;
+    //     console.log(Plotly.update(graphDiv, {},figure.layout, 0));
+    // }
+
+    private onMouseEnter = () => {
+        if (this.props.mouseEntered) {
+            this.props.mouseEntered(true);
+        }
+    };
+
+    private onMouseLeave = () => {
+        if (this.props.mouseEntered) {
+            this.props.mouseEntered(false);
+        }
+    };
+
+    private onHover = (event: Readonly<Plotly.PlotMouseEvent>) => {
+        console.log(event)
+        if (event["xvals"] && event["yvals"]) {
+            this.props.onHover(event.points[0].x as number, event.points[0].y as number);   
+        }
+    }
 
     private updateDataByPlotType(type: PlotType ,plotData: Partial<Plotly.PlotData>): Partial<Plotly.PlotData> {
         switch (type) {
