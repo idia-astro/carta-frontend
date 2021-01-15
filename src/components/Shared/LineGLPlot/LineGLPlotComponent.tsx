@@ -6,7 +6,8 @@ import {computed, makeObservable} from "mobx";
 import {observer} from "mobx-react";
 import {PlotType} from "components/Shared";
 import {Colors} from "@blueprintjs/core";
-import {clamp} from "utilities";
+import {StokesCoordinate} from "stores/widgets/StokesAnalysisWidgetStore";
+import {clamp, toExponential} from "utilities";
 import "./LineGLPlotComponent.scss";
 
 enum TickType {
@@ -83,7 +84,7 @@ export class LineGLPlotComponentProps {
     graphZoomReset: () => void;
 
     markers?: Partial<Plotly.Shape>[];
-    
+
     showTopAxis?: boolean;
     topAxisTickFormatter?: (values: number[]) => string[];
     showImageMarke?: boolean;
@@ -94,6 +95,8 @@ export class LineGLPlotComponentProps {
     onHover: (x: number, y:number) => void;
     mouseEntered?: (value: boolean) => void;
 }
+
+const th = "M15 1H1c-.6 0-1 .5-1 1v12c0 .6.4 1 1 1h14c.6 0 1-.4 1-1V2c0-.5-.4-1-1-1zM6 13H2v-2h4v2zm0-3H2V8h4v2zm0-3H2V5h4v2zm8 6H7v-2h7v2zm0-3H7V8h7v2zm0-3H7V5h7v2z";
 
 @observer
 export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProps> {
@@ -140,6 +143,8 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
 
     public render() {
         const scale = 1 / devicePixelRatio;
+        const plotName = this.props.plotName || "unknown";
+        const imageName = this.props.imageName || "unknown";
         const fontFamily = "'Helvetica Neue', 'Helvetica', 'Arial', sans-serif";
         let themeColor = Colors.LIGHT_GRAY5;
         let lableColor = Colors.GRAY1;
@@ -326,6 +331,17 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             }
         }
 
+        const exportData: Plotly.ModeBarButton = {
+            name: "Export Data",
+            title: "Export Data",
+            icon: {
+                path: th,
+                width: 16,
+                height: 16
+            },
+            click: this.onExportData,
+        };
+
         const config: Partial<Plotly.Config> = {
             displaylogo: false,
             scrollZoom: false,
@@ -342,6 +358,11 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 "lasso2d",
                 "select2d"
             ],
+            toImageButtonOptions: {
+                filename: `${imageName}-${plotName.replace(" ", "-")}-${LineGLPlotComponent.GetTimestamp()}`,
+                format: "png"
+            },
+            modeBarButtonsToAdd: [exportData]
             // editable: true,
             // edits: {
             //     shapePosition: true
@@ -378,6 +399,11 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             default:
                 return "";
         }
+    }
+
+    private static GetTimestamp() {
+        const now = new Date();
+        return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}`;
     }
 
     // private onClick = (event) => {
@@ -442,7 +468,6 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
     };
 
     private onRelayout = (event: Readonly<Plotly.PlotRelayoutEvent>) => {
-        console.log(event)
         if (!this.props.fixedRangeX) {
             const xMin = event["xaxis.range[0]"];
             const xMax = event["xaxis.range[1]"];
@@ -462,5 +487,68 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         if (event.xaxis?.autorange || event.yaxis?.autorange) {
             this.props.graphZoomReset();
         }
+    }
+
+    private onExportData = () => {
+        const plotName = this.props.plotName || "unknown";
+        const imageName = this.props.imageName || "unknown";
+
+        let comment = `# ${imageName} ${plotName}`;
+        if (this.props.xLabel) {
+            comment += `\n# xLabel: ${this.props.xLabel}`;
+        }
+        if (this.props.yLabel) {
+            comment += `\n# yLabel: ${this.props.yLabel}`;
+        }
+
+        // add comments from properties
+        if (this.props.comments && this.props.comments.length) {
+            comment += "\n" + this.props.comments.map(c => "# " + c).join("\n");
+        }
+
+        const header = "# x\ty";
+
+        let rows = [];
+        if (plotName === "histogram") {
+            rows = this.props.data.map(o => `${toExponential(o.x, 10)}\t${toExponential(o.y, 10)}`);
+        } else {
+            if (this.props.data && this.props.data.length) {
+                if (this.props.tickTypeX === TickType.Scientific) {
+                    rows = this.props.data.map(o => `${toExponential(o.x, 10)}\t${toExponential(o.y, 10)}`);
+                } else {
+                    rows = this.props.data.map(o => `${o.x}\t${toExponential(o.y, 10)}`);
+                }
+            }
+
+            if (this.props.multiPlotPropsMap && this.props.multiPlotPropsMap.size) {
+                this.props.multiPlotPropsMap.forEach((props, key) => {
+                    if (key === StokesCoordinate.LinearPolarizationQ || key === StokesCoordinate.LinearPolarizationU) {
+                        rows.push(`# ${key}\t`);
+                    } else if (key.indexOf("smoothed") > -1) {
+                        if (props.exportData) {
+                            props.exportData.forEach((content, title) => {
+                                rows.push(`# ${title}: ${content}\t`);
+                            });
+                        }
+                        rows.push(`# smoothed_x\tsmoothed_y`);
+                    }
+
+                    if (props.data) {
+                        props.data.forEach(o => {
+                            rows.push(`${o.x}\t${toExponential(o.y, 10)}`);
+                        });
+                    }
+                });
+            }
+        }
+
+        const tsvData = `data:text/tab-separated-values;charset=utf-8,${comment}\n${header}\n${rows.join("\n")}\n`;
+
+        const dataURL = encodeURI(tsvData).replace(/#/g, "%23");
+
+        const a = document.createElement("a") as HTMLAnchorElement;
+        a.href = dataURL;
+        a.download = `${imageName}-${plotName.replace(" ", "-")}-${LineGLPlotComponent.GetTimestamp()}.tsv`;
+        a.dispatchEvent(new MouseEvent("click"));
     }
 }
