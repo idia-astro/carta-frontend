@@ -107,31 +107,30 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
 
     @computed get LineGLData() {
         let scatterDatasets: Plotly.Data[] = [];
-        let trace1: Partial<Plotly.PlotData> = {};
-        let marker: Partial<Plotly.PlotMarker> = {
-            color: this.props.lineColor,
-            opacity: 1
-        };
+        scatterDatasets.push(
+                LineGLPlotComponent.updateLineData(
+                this.props.plotType, 
+                this.props.pointRadius * devicePixelRatio,
+                this.props.lineColor,
+                this.props.lineWidth * devicePixelRatio,
+                this.props.data
+            )
+        );
 
-        let line: Partial<Plotly.ScatterLine> = {
-            width: this.props.lineWidth * devicePixelRatio
-        };
-        trace1.type = "scattergl";
-        trace1.mode = "lines";
-        trace1.line = line;
-        trace1.marker = marker;
-        trace1.hoverinfo = "none";
-        const dataSize = this.props.data.length;
-        trace1.x = Array(dataSize);
-        trace1.y = Array(dataSize);
-        // let topAxisTick = [];
-        for (let i = 0; i < dataSize; i++) {
-            const point = this.props.data[i];
-            trace1.x[i] = point.x;
-            trace1.y[i] = point.y;
+        if (this.props.multiPlotPropsMap.size) {
+            this.props.multiPlotPropsMap.forEach((line) => {
+                scatterDatasets.push(                
+                    LineGLPlotComponent.updateLineData(
+                        line.type, 
+                        line.pointRadius * devicePixelRatio,
+                        line.borderColor,
+                        line.borderWidth * devicePixelRatio, 
+                        line.data
+                    )
+                );
+            });
         }
-        this.updateDataByPlotType(this.props.plotType, trace1);
-        scatterDatasets.push(trace1);
+
         return {data: scatterDatasets};
     }
 
@@ -159,8 +158,6 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             themeColor = Colors.DARK_GRAY3;
             markerColor = Colors.GRAY4;
         }
-
-
 
         let layout: Partial<Plotly.Layout> = {
             width: this.props.width * devicePixelRatio, 
@@ -303,7 +300,6 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 let {ticks, topAxisTick} = this.tickVals;
                 layout.xaxis.tickvals = ticks;
                 layout.xaxis.ticktext = ticks.join().split(',');
-                // layout.xaxis.tickmode = "array";
 
                 trace2.type = "scattergl";
                 trace2.mode = "lines";
@@ -417,6 +413,54 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
     //     console.log(Plotly.update(graphDiv, {},figure.layout, 0));
     // }
 
+    private static updateLineData (
+        plotType: PlotType, 
+        pointRadius: number,
+        lineColor: string,
+        lineWidth: number,
+        data: { x: number, y: number }[] | { x: number, y: number, z?: number }[]
+    ): Partial<Plotly.PlotData> {
+        let trace: Partial<Plotly.PlotData> = {};
+        trace.type = "scattergl";
+        trace.hoverinfo = "none";
+        let marker: Partial<Plotly.PlotMarker> = {
+            color: lineColor,
+            opacity: 1
+        };
+
+        let line: Partial<Plotly.ScatterLine> = {
+            width: lineWidth
+        };
+        trace.marker = marker;
+        trace.line = line;
+
+        switch (plotType) {
+            case PlotType.STEPS:
+                trace.mode = "lines+markers";
+                trace.line.shape = "hvh";
+                break;
+            case PlotType.POINTS:
+                trace.mode = "markers";
+                trace.marker.size = pointRadius;
+                break;
+            default:
+                trace.mode = "lines";
+                break;
+        }
+
+        const dataSize = data.length;
+        trace.x = Array(dataSize);
+        trace.y = Array(dataSize);
+
+        for (let i = 0; i < data.length; i++) {
+            const point = data[i];
+            trace.x[i] = point.x;
+            trace.y[i] = point.y; 
+        }
+
+        return trace;
+    }
+
     private onMouseEnter = () => {
         if (this.props.mouseEntered) {
             this.props.mouseEntered(true);
@@ -433,21 +477,6 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         console.log(event)
         if (event["xvals"] && event["yvals"]) {
             this.props.onHover(event.points[0].x as number, event.points[0].y as number);   
-        }
-    }
-
-    private updateDataByPlotType(type: PlotType ,plotData: Partial<Plotly.PlotData>): Partial<Plotly.PlotData> {
-        switch (type) {
-            case PlotType.STEPS:
-                plotData.mode = "lines+markers";
-                plotData.line.shape = "hvh";
-                return plotData;
-            case PlotType.POINTS:
-                plotData.mode = "markers";
-                plotData.marker.size = this.props.pointRadius * devicePixelRatio;
-                return plotData;
-            default:
-                return plotData;
         }
     }
 
