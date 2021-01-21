@@ -65,9 +65,27 @@ EMSCRIPTEN_KEEPALIVE AstFrameSet* initFrame(const char* header)
     return frameSet;
 }
 
+EMSCRIPTEN_KEEPALIVE AstMapping* getMapping(AstFrameSet* frameSet)
+{
+    if (!frameSet || !astIsAFrameSet(frameSet))
+    {
+        cout << "Invalid frame set." << endl;
+        return nullptr;
+    }
+
+    AstMapping *map = static_cast<AstMapping*>astGetMapping(frameSet, AST__BASE, AST__CURRENT);
+    if (!map)
+    {
+        cout << "Getting mapping failed." << endl;
+        return nullptr;
+    }
+
+    return map;
+}
+
 EMSCRIPTEN_KEEPALIVE AstSpecFrame* getSpectralFrame(AstFrameSet* frameSet)
 {
-   if (!frameSet || !astIsAFrameSet(frameSet))
+    if (!frameSet || !astIsAFrameSet(frameSet))
     {
         cout << "Invalid frame set." << endl;
         return nullptr;

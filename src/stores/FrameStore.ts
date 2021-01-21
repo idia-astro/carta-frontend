@@ -51,6 +51,7 @@ export const WCS_PRECISION = 10;
 
 export class FrameStore {
     private readonly astFrameSet: number;
+    private readonly astMapping: number;
     private readonly spectralFrame: number;
     public spectralCoordsSupported: Map<string, { type: SpectralType, unit: SpectralUnit }>;
     public spectralSystemsSupported: Array<SpectralSystem>;
@@ -693,6 +694,7 @@ export class FrameStore {
         const preferenceStore = PreferenceStore.Instance;
 
         this.astFrameSet = null;
+        this.astMapping = null;
         this.spectralFrame = null;
         this.spectralType = null;
         this.spectralUnit = null;
@@ -760,6 +762,8 @@ export class FrameStore {
 
         this.astFrameSet = this.initFrame();
         if (this.astFrameSet) {
+            this.astMapping = AST.getMapping(this.astFrameSet);
+            AST.dump(this.astMapping);
             this.spectralFrame = AST.getSpectralFrame(this.astFrameSet);
         }
         this.initSupportedSpectralConversion();
