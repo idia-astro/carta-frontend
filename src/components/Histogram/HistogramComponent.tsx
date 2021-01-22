@@ -206,11 +206,13 @@ export class HistogramComponent extends React.Component<WidgetProps> {
             unitString = `Value (${frame.unit})`;
         }
 
-        const imageName = frame.frameInfo.fileInfo.name;
+        const imageName = frame.filename;
         const plotName = `channel ${frame.channel} histogram`;
         let linePlotProps: LinePlotComponentProps = {
             xLabel: unitString,
             yLabel: "Count",
+            showXAxisLabel: true,
+            showYAxisLabel: true,
             darkMode: appStore.darkTheme,
             imageName: imageName,
             plotName: plotName,
@@ -223,7 +225,7 @@ export class HistogramComponent extends React.Component<WidgetProps> {
             graphZoomReset: this.widgetStore.clearXYBounds,
             graphCursorMoved: this.onGraphCursorMoved,
             scrollZoom: true,
-            borderWidth: this.widgetStore.lineWidth,
+            lineWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
             zeroLineWidth: 2
         };

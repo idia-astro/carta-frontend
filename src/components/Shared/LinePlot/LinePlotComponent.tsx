@@ -1,19 +1,23 @@
 import * as React from "react";
+// import * as Plotly from "plotly.js";
 import {observer} from "mobx-react";
 import {action, computed, makeObservable, observable} from "mobx";
 import {ESCAPE} from "@blueprintjs/core/lib/cjs/common/keys";
 import {Colors} from "@blueprintjs/core";
-import {ChartArea} from "chart.js";
-import {Scatter} from "react-chartjs-2";
+// import {ChartArea} from "chart.js";
+// import {Scatter} from "react-chartjs-2";
 import ReactResizeDetector from "react-resize-detector";
 import {Arrow, Group, Layer, Line, Rect, Stage, Text} from "react-konva";
-import {PlotContainerComponent, TickType, MultiPlotProps} from "./PlotContainer/PlotContainerComponent";
+// import {PlotContainerComponent, TickType, MultiPlotProps} from "./PlotContainer/PlotContainerComponent";
+// import {TickType, MultiPlotProps} from "./PlotContainer/PlotContainerComponent";
 import {ToolbarComponent} from "./Toolbar/ToolbarComponent";
 import {StokesCoordinate} from "stores/widgets/StokesAnalysisWidgetStore";
 import {Point2D} from "models";
 import {clamp, toExponential} from "utilities";
 import {PlotType} from "components/Shared";
 import "./LinePlotComponent.scss";
+
+import {LineGLPlotComponent, TickType, MultiPlotProps} from "./PlotContainer/GLPlotComponent"
 
 export enum ZoomMode {
     NONE,
@@ -71,7 +75,8 @@ export class LinePlotComponentProps {
     tickTypeY?: TickType;
     markers?: LineMarker[];
     showTopAxis?: boolean;
-    topAxisTickFormatter?: (value: number, index: number, values: number[]) => string | number;
+    // topAxisTickFormatter?: (value: number, index: number, values: number[]) => string | number;
+    topAxisTickFormatter?: (values: number[]) => string[];
     graphClicked?: (x: number) => void;
     graphRightClicked?: (x: number) => void;
     graphZoomedX?: (xMin: number, xMax: number) => void;
@@ -81,9 +86,9 @@ export class LinePlotComponentProps {
     graphCursorMoved?: (x: number) => void;
     scrollZoom?: boolean;
     showXAxisTicks?: boolean;
-    showXAxisLabel?: boolean;
+    showXAxisLabel: boolean;
     showYAxisTicks?: boolean;
-    showYAxisLabel?: boolean;
+    showYAxisLabel: boolean;
     yZeroLineColor?: string;
     showLegend?: boolean;
     xTickMarkLength?: number;
@@ -95,7 +100,7 @@ export class LinePlotComponentProps {
     mouseEntered?: (value: boolean) => void;
     multiColorSingleLineColors?: Array<string>;
     multiColorMultiLinesColors?: Map<string, Array<string>>;
-    borderWidth?: number;
+    lineWidth?: number;
     selectingMode?: LinePlotSelectingMode;
     setSelectedRange?: (min: number, max: number) => void;
     order?: number;
@@ -116,9 +121,10 @@ const DEFAULT_FONT_SIZE = 12;
 
 export const VERTICAL_RANGE_PADDING = 0.05;
 
+
 @observer
 export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
-    private plotRef;
+    private plotRef: Readonly<HTMLElement>;
     private stageRef;
     private stageClickStartX: number;
     private stageClickStartY: number;
@@ -126,7 +132,7 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
     private previousClickTime: number;
     private pendingClickHandle;
 
-    @observable chartArea: ChartArea;
+    @observable chartMargin: {top: number, bottom: number, left: number, right: number};
     @observable hoveredMarker: LineMarker;
     @observable width = 0;
     @observable height = 0;
@@ -172,9 +178,24 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
         return "crosshair";
     }
 
+    @computed get chartArea(): {top: number, bottom: number, left: number, right: number} {
+        return {
+            top: this.chartMargin.top , 
+            bottom: this.height - this.chartMargin.bottom, 
+            left: this.chartMargin.left, 
+            right: this.width - this.chartMargin.right
+        }
+    }
+
     constructor(props: LinePlotComponentProps) {
         super(props);
         makeObservable(this);
+        this.chartMargin = {
+            top: LineGLPlotComponent.marginTop, 
+            bottom: LineGLPlotComponent.marginBottom, 
+            left: this.props.showYAxisTicks === undefined ? LineGLPlotComponent.marginLeft : 5, 
+            right: LineGLPlotComponent.marginRight
+        };
     }
 
     private getValueForPixelX(pixel: number) {
@@ -234,8 +255,8 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
         this.plotRef = plotRef;
     };
 
-    @action updateChart = (chartArea: ChartArea) => {
-        this.chartArea = chartArea;
+    @action updateChartMargin = (chartMargin: {top: number, bottom: number, left: number, right: number}) => {
+        this.chartMargin = chartMargin;
     };
 
     @action resize = (w, h) => {
@@ -504,37 +525,46 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
         return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}`;
     }
 
-    private exportSubPlotImage(visible: boolean) {
-        const scatterChart = this.plotRef.chartInstance;
-        scatterChart.config.options.scales.xAxes[0].ticks.display = visible;
-        scatterChart.config.options.scales.xAxes[0].ticks.major.display = visible;
-        scatterChart.config.options.scales.xAxes[0].ticks.minor.display = visible;
-        let tickMarkLength = 10;
-        if (!visible) {
-            tickMarkLength = 0;
-        }
-        scatterChart.options.scales.xAxes[0].gridLines.tickMarkLength = tickMarkLength;
-        scatterChart.options.scales.xAxes[0].scaleLabel.display = visible;
-        scatterChart.update();
-    }
+    // private exportSubPlotImage(visible: boolean) {
+    //     const scatterChart = this.plotRef.chartInstance;
+    //     scatterChart.config.options.scales.xAxes[0].ticks.display = visible;
+    //     scatterChart.config.options.scales.xAxes[0].ticks.major.display = visible;
+    //     scatterChart.config.options.scales.xAxes[0].ticks.minor.display = visible;
+    //     let tickMarkLength = 10;
+    //     if (!visible) {
+    //         tickMarkLength = 0;
+    //     }
+    //     scatterChart.options.scales.xAxes[0].gridLines.tickMarkLength = tickMarkLength;
+    //     scatterChart.options.scales.xAxes[0].scaleLabel.display = visible;
+    //     scatterChart.update();
+    // }
 
-    private showPlotxAxes() {
-        const scatterProps = this.plotRef.chartInstance;
-        if (this.props.isGroupSubPlot === true) {
-            if (scatterProps && scatterProps.options.scales.xAxes[0].ticks.display === false) {
-                return true;
+    // private showPlotxAxes() {
+    //     const scatterProps = this.plotRef.chartInstance;
+    //     if (this.props.isGroupSubPlot === true) {
+    //         if (scatterProps && scatterProps.options.scales.xAxes[0].ticks.display === false) {
+    //             return true;
+    //         }
+    //     }
+    //     return false;
+    // }
+
+    private drawInlineSVG(svgElement: SVGSVGElement, ctx: CanvasRenderingContext2D): Promise<HTMLImageElement> {
+        var svgURL = new XMLSerializer().serializeToString(svgElement);
+        var image = new Image();
+        return new Promise(resolve => {
+            image.onload = () => {
+                ctx.drawImage(image, 0, 0);
+                resolve(image);
             }
-        }
-        return false;
+            image.src = 'data:image/svg+xml; charset=utf8, ' + encodeURIComponent(svgURL);
+        })
     }
 
     exportImage = () => {
-        const scatter = this.plotRef as Scatter;
-        const showPlotxAxes = this.showPlotxAxes();
-        if (showPlotxAxes) {
-            this.exportSubPlotImage(true);
-        }
-        const canvas = scatter.chartInstance.canvas;
+        const canvas = this.plotRef.getElementsByTagName("canvas")[0];
+        const svgs = this.plotRef.getElementsByTagName("svg");
+
         const plotName = this.props.plotName || "unknown";
         const imageName = this.props.imageName || "unknown";
 
@@ -545,68 +575,60 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
         const ctx = composedCanvas.getContext("2d");
         ctx.fillStyle = "rgba(255, 255, 255, 0.0)";
         ctx.fillRect(0, 0, composedCanvas.width, composedCanvas.height);
-        ctx.drawImage(canvas, 0, 0);
 
-        // plot chart border
-        const chartBorder = this.genChartBorder();
-        if (chartBorder) {
-            ctx.beginPath();
-            ctx.strokeStyle = this.props.darkMode ? Colors.DARK_GRAY5 : Colors.LIGHT_GRAY1;
-            ctx.lineWidth = 1;
-            ctx.rect(chartBorder.x, chartBorder.y, chartBorder.width, chartBorder.height);
-            ctx.stroke();
-        }
+        // svgs 0 for grids, svgs 1 for titles in plotlyjs
+        Promise.all([this.drawInlineSVG(svgs[0], ctx), this.drawInlineSVG(svgs[1], ctx)]).then((images) =>{
+            ctx.drawImage(images[0], 0, 0);
+            ctx.drawImage(images[1], 0, 0);
+            ctx.drawImage(canvas, 0, 0);
 
-        // plot Mean/RMS
-        const meanRMS = this.genMeanRMSForPngPlot();
-        if (meanRMS?.mean) {
-            // plot mean
-            ctx.beginPath();
-            ctx.setLineDash([meanRMS.mean.dash]);
-            ctx.strokeStyle = meanRMS.mean.color;
-            ctx.lineWidth = 1;
-            ctx.moveTo(meanRMS.mean.xLeft, meanRMS.mean.y);
-            ctx.lineTo(meanRMS.mean.xRight, meanRMS.mean.y);
-            ctx.stroke();
-        }
-        if (meanRMS?.RMS) {
-            // plot RMS
-            ctx.fillStyle = meanRMS.RMS.color;
-            ctx.globalAlpha = meanRMS.RMS.opacity;
-            ctx.fillRect(meanRMS.RMS.xLeft, meanRMS.RMS.yTop, meanRMS.RMS.width, meanRMS.RMS.height);
-            ctx.globalAlpha = 1.0;
-        }
+            // plot Mean/RMS
+            const meanRMS = this.genMeanRMSForPngPlot();
+            if (meanRMS?.mean) {
+                // plot mean
+                ctx.beginPath();
+                ctx.setLineDash([meanRMS.mean.dash]);
+                ctx.strokeStyle = meanRMS.mean.color;
+                ctx.lineWidth = 1;
+                ctx.moveTo(meanRMS.mean.xLeft, meanRMS.mean.y);
+                ctx.lineTo(meanRMS.mean.xRight, meanRMS.mean.y);
+                ctx.stroke();
+            }
+            if (meanRMS?.RMS) {
+                // plot RMS
+                ctx.fillStyle = meanRMS.RMS.color;
+                ctx.globalAlpha = meanRMS.RMS.opacity;
+                ctx.fillRect(meanRMS.RMS.xLeft, meanRMS.RMS.yTop, meanRMS.RMS.width, meanRMS.RMS.height);
+                ctx.globalAlpha = 1.0;
+            }
 
-        // plot spectral lines
-        const spectralLines = this.genSpectralLinesForPngPlot();
-        spectralLines?.forEach(spectralLine => {
-            // plot line
-            ctx.beginPath();
-            ctx.strokeStyle = spectralLine.color;
-            ctx.lineWidth = 1;
-            ctx.moveTo(spectralLine.x, spectralLine.yBottom);
-            ctx.lineTo(spectralLine.x, spectralLine.yTop);
-            ctx.stroke();
-            // plot rotated text
-            ctx.save();
-            ctx.font = "12px Arial";
-            ctx.translate(spectralLine.x, spectralLine.yBottom);
-            ctx.rotate(-Math.PI / 2);
-            ctx.fillStyle = spectralLine.color;
-            ctx.fillText(spectralLine.text, 0, 10);
-            ctx.restore();
+            // plot spectral lines
+            const spectralLines = this.genSpectralLinesForPngPlot();
+            spectralLines?.forEach(spectralLine => {
+                // plot line
+                ctx.beginPath();
+                ctx.strokeStyle = spectralLine.color;
+                ctx.lineWidth = 1;
+                ctx.moveTo(spectralLine.x, spectralLine.yBottom);
+                ctx.lineTo(spectralLine.x, spectralLine.yTop);
+                ctx.stroke();
+                // plot rotated text
+                ctx.save();
+                ctx.font = "12px Arial";
+                ctx.translate(spectralLine.x, spectralLine.yBottom);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillStyle = spectralLine.color;
+                ctx.fillText(spectralLine.text, 0, 10);
+                ctx.restore();
+            });
+
+            composedCanvas.toBlob((blob) => {
+                const link = document.createElement("a") as HTMLAnchorElement;
+                link.download = `${imageName}-${plotName.replace(" ", "-")}-${LinePlotComponent.GetTimestamp()}.png`;
+                link.href = URL.createObjectURL(blob);
+                link.dispatchEvent(new MouseEvent("click"));
+            }, "image/png");
         });
-
-        composedCanvas.toBlob((blob) => {
-            const link = document.createElement("a") as HTMLAnchorElement;
-            link.download = `${imageName}-${plotName.replace(" ", "-")}-${LinePlotComponent.GetTimestamp()}.png`;
-            link.href = URL.createObjectURL(blob);
-            link.dispatchEvent(new MouseEvent("click"));
-        }, "image/png");
-
-        if (showPlotxAxes) {
-            this.exportSubPlotImage(false);
-        }
     };
 
     exportData = () => {
@@ -1003,10 +1025,10 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
             >
                 <ReactResizeDetector handleWidth handleHeight onResize={this.resize} refreshMode={"throttle"} refreshRate={33}/>
                 {this.width > 0 && this.height > 0 &&
-                <PlotContainerComponent
+                <LineGLPlotComponent
                     {...this.props}
                     plotRefUpdated={this.onPlotRefUpdated}
-                    chartAreaUpdated={this.updateChart}
+                    updateChartMargin={this.updateChartMargin}
                     width={this.width}
                     height={this.height}
                 />
@@ -1026,7 +1048,7 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
                     <Layer>
                         {this.genLines()}
                         {this.genSelectionRect()}
-                        {this.genBorderRect()}
+                        {/* {this.genBorderRect()} */}
                     </Layer>
                 </Stage>
                 }

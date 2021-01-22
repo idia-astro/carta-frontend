@@ -14,4 +14,3 @@ export * from "./ClearableNumericInput/ClearableNumericInputComponent";
 export * from "./SpectralSettings/SpectralSettingsComponent";
 export * from "./SafeNumericInput/SafeNumericInput";
 export * from "./SmoothingSettings/SmoothingSettingsComponent";
-export * from "./LineGLPlot/LineGLPlotComponent";

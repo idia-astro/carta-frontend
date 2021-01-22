@@ -48,7 +48,7 @@ export class PlotContainerProps {
     zeroLineWidth?: number;
     multiColorSingleLineColors?: Array<string>;
     multiColorMultiLinesColors?: Map<string, Array<string>>;
-    borderWidth?: number;
+    lineWidth?: number;
     order?: number;
     multiPlotPropsMap?: Map<string, MultiPlotProps>;
 }
@@ -57,7 +57,7 @@ export class MultiPlotProps {
     data: { x: number, y: number }[];
     type: PlotType;
     borderColor?: string;
-    borderWidth?: number;
+    lineWidth?: number;
     pointRadius?: number;
     order?: number;
     exportData?: Map<string, string>;
@@ -293,7 +293,7 @@ export class PlotContainerComponent extends React.Component<PlotContainerProps> 
             return true;
         } else if (props.zeroLineWidth !== nextProps.zeroLineWidth) {
             return true;
-        } else if (props.borderWidth !== nextProps.borderWidth) {
+        } else if (props.lineWidth !== nextProps.lineWidth) {
             return true;
         }
 
@@ -444,7 +444,7 @@ export class PlotContainerComponent extends React.Component<PlotContainerProps> 
                 datasetConfig.pointRadius = 0;
                 datasetConfig.showLine = true;
                 datasetConfig.steppedLine = this.props.plotType === PlotType.STEPS ? "middle" : false;
-                datasetConfig.borderWidth = this.props.borderWidth ? this.props.borderWidth : 1;
+                datasetConfig.borderWidth = this.props.lineWidth ? this.props.lineWidth : 1;
                 datasetConfig.borderColor = lineColor;
             }
 
@@ -493,7 +493,7 @@ export class PlotContainerComponent extends React.Component<PlotContainerProps> 
                 }
 
                 let currentPointRadius = props.pointRadius ? props.pointRadius : this.props.pointRadius;
-                let currentLineWidth = props.borderWidth ? props.borderWidth : this.props.borderWidth;
+                let currentLineWidth = props.lineWidth ? props.lineWidth : this.props.lineWidth;
 
                 if (props.type === PlotType.POINTS) {
                     multiPlotDatasetConfig.showLine = false;

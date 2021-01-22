@@ -348,11 +348,13 @@ export class SpectralProfilerComponent extends React.Component<WidgetProps> {
         }
 
         const frame = this.widgetStore.effectiveFrame;
-        const imageName = (frame ? frame.frameInfo.fileInfo.name : undefined);
+        const imageName = (frame ? frame.filename : undefined);
 
         let linePlotProps: LinePlotComponentProps = {
             xLabel: "Channel",
             yLabel: "Value",
+            showXAxisLabel: true,
+            showYAxisLabel: true,
             darkMode: appStore.darkTheme,
             imageName: imageName,
             plotName: `Z profile`,
@@ -367,7 +369,7 @@ export class SpectralProfilerComponent extends React.Component<WidgetProps> {
             scrollZoom: true,
             markers: this.fillVisibleSpectralLines(),
             mouseEntered: this.widgetStore.setMouseMoveIntoLinePlots,
-            borderWidth: this.widgetStore.lineWidth,
+            lineWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
             selectingMode: this.linePlotSelectingMode,
             setSelectedRange: this.setSelectedRange,
@@ -423,7 +425,7 @@ export class SpectralProfilerComponent extends React.Component<WidgetProps> {
                         data: currentPlotData.smoothingValues,
                         type: smoothingStore.lineType,
                         borderColor: smoothingStore.lineColor.colorHex,
-                        borderWidth: smoothingStore.lineWidth,
+                        lineWidth: smoothingStore.lineWidth,
                         pointRadius: smoothingStore.pointRadius,
                         order: 0,
                         exportData: smoothingStore.exportData

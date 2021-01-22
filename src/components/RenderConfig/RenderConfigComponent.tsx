@@ -253,7 +253,7 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
             unitString = `Value (${frame.unit})`;
         }
 
-        const imageName = frame.frameInfo.fileInfo.name;
+        const imageName = frame.filename;
         const plotName = `channel ${frame.channel} histogram`;
         let linePlotProps: LinePlotComponentProps = {
             xLabel: unitString,
@@ -263,6 +263,7 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
             logY: this.widgetStore.logScaleY,
             plotType: this.widgetStore.plotType,
             showYAxisTicks: false,
+            showXAxisLabel: true,
             showYAxisLabel: false,
             graphClicked: this.onMinMoved,
             graphRightClicked: this.onMaxMoved,
@@ -272,7 +273,7 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
             graphZoomReset: this.widgetStore.clearXYBounds,
             graphCursorMoved: this.onGraphCursorMoved,
             scrollZoom: true,
-            borderWidth: this.widgetStore.lineWidth,
+            lineWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
             zeroLineWidth: 2
         };

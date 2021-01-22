@@ -275,7 +275,7 @@ export class AppStore {
 
     @computed get frameNames(): IOptionProps [] {
         let names: IOptionProps [] = [];
-        this.frames.forEach((frame, index) => names.push({label: index + ": " + frame.frameInfo.fileInfo.name, value: frame.frameInfo.fileId}));
+        this.frames.forEach((frame, index) => names.push({label: index + ": " + frame.filename, value: frame.frameInfo.fileId}));
         return names;
     }
 
@@ -358,7 +358,10 @@ export class AppStore {
             this.setSpectralReference(newFrame);
         }
 
-        this.setActiveFrame(newFrame.frameInfo.fileId);
+        const imageFileId = newFrame.frameInfo.fileId;
+        this.setActiveFrame(imageFileId);
+        // init image associated catalog
+        this.catalogStore.updateImageAssociatedCatalogId(imageFileId, []);
 
         // Set animation mode to frame if the new image is 2D, or to channel if the image is 3D and there are no other frames
         if (newFrame.frameInfo.fileInfoExtended.depth <= 1 && newFrame.frameInfo.fileInfoExtended.stokes <= 1) {
@@ -783,7 +786,7 @@ export class AppStore {
             });
         }
         this.backendService.exportRegion(directory, file, fileType, coordType, frame.frameInfo.fileId, regionStyles).subscribe(() => {
-            AppToaster.show(SuccessToast("saved", `Exported regions for ${frame.frameInfo.fileInfo.name} using ${coordType === CARTA.CoordinateType.WORLD ? "world" : "pixel"} coordinates`));
+            AppToaster.show(SuccessToast("saved", `Exported regions for ${frame.filename} using ${coordType === CARTA.CoordinateType.WORLD ? "world" : "pixel"} coordinates`));
             this.fileBrowserStore.hideFileBrowser();
         }, error => {
             console.error(error);
@@ -1305,6 +1308,7 @@ export class AppStore {
     @action handleCatalogFilterStream = (catalogFilter: CARTA.CatalogFilterResponse) => {
         const catalogFileId = catalogFilter.fileId;
         const catalogProfileStore = this.catalogStore.catalogProfileStores.get(catalogFileId);
+        const catalogWidgetStoreId = this.catalogStore.catalogWidgets.get(catalogFileId);
 
         const progress = catalogFilter.progress;
         if (catalogProfileStore) {
@@ -1317,8 +1321,9 @@ export class AppStore {
             }
 
             if (catalogProfileStore.updateMode === CatalogUpdateMode.ViewUpdate) {
-                const xColumn = catalogProfileStore.xColumnRepresentation;
-                const yColumn = catalogProfileStore.yColumnRepresentation;
+                const catalogWidgetStore = this.widgetsStore.catalogWidgets.get(catalogWidgetStoreId);
+                const xColumn = catalogWidgetStore.xAxis;
+                const yColumn = catalogWidgetStore.yAxis;
                 if (xColumn && yColumn) {
                     const coords = catalogProfileStore.get2DPlotData(xColumn, yColumn, catalogData);
                     const wcs = this.activeFrame.validWcs ? this.activeFrame.wcsInfo : 0;
@@ -1593,7 +1598,7 @@ export class AppStore {
 
         if (val) {
             if (!frame.setSpatialReference(this.spatialReference)) {
-                AppToaster.show(WarningToast(`Could not enable spatial matching of ${frame.frameInfo.fileInfo.name} to reference image ${this.spatialReference.frameInfo.fileInfo.name}. No valid transform was found`));
+                AppToaster.show(WarningToast(`Could not enable spatial matching of ${frame.filename} to reference image ${this.spatialReference.filename}. No valid transform was found`));
             }
         } else {
             frame.clearSpatialReference();
@@ -1645,7 +1650,7 @@ export class AppStore {
 
         if (val) {
             if (!frame.setSpectralReference(this.spectralReference)) {
-                AppToaster.show(WarningToast(`Could not enable spectral matching (velocity system) of ${frame.frameInfo.fileInfo.name} to reference image ${this.spectralReference.frameInfo.fileInfo.name}. No valid transform was found`));
+                AppToaster.show(WarningToast(`Could not enable spectral matching (velocity system) of ${frame.filename} to reference image ${this.spectralReference.filename}. No valid transform was found`));
             }
         } else {
             frame.clearSpectralReference();
@@ -1723,7 +1728,7 @@ export class AppStore {
                     const now = new Date();
                     const timestamp = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}`;
                     const link = document.createElement("a") as HTMLAnchorElement;
-                    link.download = `${this.activeFrame.frameInfo.fileInfo.name}-image-${timestamp}.png`;
+                    link.download = `${this.activeFrame.filename}-image-${timestamp}.png`;
                     link.href = URL.createObjectURL(blob);
                     link.dispatchEvent(new MouseEvent("click"));
                 }, "image/png");

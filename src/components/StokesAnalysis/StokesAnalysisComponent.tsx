@@ -821,7 +821,7 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             return <NonIdealState icon={"error"} title={"Missing profile"} description={"Profile not found"}/>;
         }
         const frame = this.widgetStore.effectiveFrame;
-        const imageName = (this.widgetStore.effectiveFrame ? this.widgetStore.effectiveFrame.frameInfo.fileInfo.name : undefined);
+        const imageName = (this.widgetStore.effectiveFrame ? this.widgetStore.effectiveFrame.filename : undefined);
         let quLinePlotProps: LinePlotComponentProps = {
             xLabel: "Channel",
             yLabel: "Value",
@@ -831,6 +831,7 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             tickTypeY: TickType.Scientific,
             showXAxisTicks: false,
             showXAxisLabel: false,
+            showYAxisLabel: true,
             showLegend: true,
             xTickMarkLength: 0,
             graphCursorMoved: this.onGraphCursorMoved,
@@ -846,7 +847,7 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             multiColorMultiLinesColors: new Map(),
             // settings
             plotType: this.widgetStore.plotType,
-            borderWidth: this.widgetStore.lineWidth,
+            lineWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
             multiPlotPropsMap: new Map()
         };
@@ -860,6 +861,7 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             tickTypeY: TickType.Scientific,
             showXAxisTicks: false,
             showXAxisLabel: false,
+            showYAxisLabel: true,
             xTickMarkLength: 0,
             graphCursorMoved: this.onGraphCursorMoved,
             isGroupSubPlot: true,
@@ -873,7 +875,7 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             mouseEntered: this.widgetStore.setMouseMoveIntoLinePlots,
             // settings
             plotType: this.widgetStore.plotType,
-            borderWidth: this.widgetStore.lineWidth,
+            lineWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
             multiPlotPropsMap: new Map(),
             order: 1
@@ -889,6 +891,7 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             // tickTypeY: TickType.Scientific,
             showXAxisTicks: true,
             showXAxisLabel: true,
+            showYAxisLabel: true,
             graphCursorMoved: this.onGraphCursorMoved,
             isGroupSubPlot: true,
             scrollZoom: true,
@@ -901,7 +904,7 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             mouseEntered: this.widgetStore.setMouseMoveIntoLinePlots,
             // settings
             plotType: this.widgetStore.plotType,
-            borderWidth: this.widgetStore.lineWidth,
+            lineWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
             multiPlotPropsMap: new Map(),
             order: 1
@@ -988,28 +991,28 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
                         data: currentPlotData.qSmoothedValues.dataset,
                         type: smoothingStore.lineType,
                         borderColor: primaryLineColor,
-                        borderWidth: this.widgetStore.lineWidth + 1,
+                        lineWidth: this.widgetStore.lineWidth + 1,
                         pointRadius: this.widgetStore.linePlotPointSize + 1
                     };
                     let smoothedUPlotProps: MultiPlotProps = {
                         data: currentPlotData.uSmoothedValues.dataset,
                         type: smoothingStore.lineType,
                         borderColor: ulinePlotColor,
-                        borderWidth: this.widgetStore.lineWidth + 1,
+                        lineWidth: this.widgetStore.lineWidth + 1,
                         pointRadius: this.widgetStore.linePlotPointSize + 1
                     };
                     let smoothedPiPlotProps: MultiPlotProps = {
                         data: currentPlotData.piSmoothedValues.dataset,
                         type: smoothingStore.lineType,
                         borderColor: primaryLineColor,
-                        borderWidth: this.widgetStore.lineWidth + 1,
+                        lineWidth: this.widgetStore.lineWidth + 1,
                         pointRadius: this.widgetStore.linePlotPointSize + 1
                     };
                     let smoothedPaPlotProps: MultiPlotProps = {
                         data: currentPlotData.paSmoothedValues.dataset,
                         type: smoothingStore.lineType,
                         borderColor: smoothingStore.colorMap.get(StokesCoordinate.PolarizationAngle) ? smoothingStore.colorMap.get(StokesCoordinate.PolarizationAngle).colorHex : primaryLineColor,
-                        borderWidth: this.widgetStore.lineWidth + 1,
+                        lineWidth: this.widgetStore.lineWidth + 1,
                         pointRadius: this.widgetStore.linePlotPointSize + 1
                     };
                     quLinePlotProps.multiPlotPropsMap.set(StokesCoordinate.LinearPolarizationQ + "_smoothed", smoothedQPlotProps);

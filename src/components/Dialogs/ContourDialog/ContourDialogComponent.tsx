@@ -149,7 +149,7 @@ export class ContourDialogComponent extends React.Component {
         if (!frame) {
             return null;
         }
-        return <MenuItem text={frame.frameInfo.fileInfo.name} onClick={handleClick} key={frame.frameInfo.fileId}/>;
+        return <MenuItem text={frame.filename} onClick={handleClick} key={frame.frameInfo.fileId}/>;
     };
 
     private renderHistogramSelectItem = (isCube: boolean, {handleClick, modifiers, query}) => {
@@ -308,6 +308,7 @@ export class ContourDialogComponent extends React.Component {
             logY: this.widgetStore.logScaleY,
             plotType: this.widgetStore.plotType,
             showYAxisTicks: false,
+            showXAxisLabel: true,
             showYAxisLabel: false,
             graphClicked: this.handleGraphClicked,
             graphRightClicked: this.handleGraphRightClicked,
@@ -316,7 +317,7 @@ export class ContourDialogComponent extends React.Component {
             graphZoomedXY: this.widgetStore.setXYBounds,
             graphZoomReset: this.widgetStore.clearXYBounds,
             scrollZoom: true,
-            borderWidth: this.widgetStore.lineWidth,
+            lineWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
             zeroLineWidth: 2
         };
@@ -480,7 +481,7 @@ export class ContourDialogComponent extends React.Component {
                             itemRenderer={this.renderDataSourceSelectItem}
                             disabled={appStore.animatorStore.animationActive}
                         >
-                            <Button text={dataSource.frameInfo.fileInfo.name} rightIcon="double-caret-vertical" alignText={"right"} disabled={appStore.animatorStore.animationActive}/>
+                            <Button text={dataSource.filename} rightIcon="double-caret-vertical" alignText={"right"} disabled={appStore.animatorStore.animationActive}/>
                         </DataSourceSelect>
                         <Tooltip content={appStore.frameLockedToContour ? "Data source is locked to active image" : "Data source is independent of active image"}>
                             <AnchorButton className="lock-button" icon={appStore.frameLockedToContour ? "lock" : "unlock"} minimal={true} onClick={appStore.toggleFrameContourLock}/>
