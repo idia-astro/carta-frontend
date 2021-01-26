@@ -18,6 +18,7 @@ import {PlotType} from "components/Shared";
 import "./LinePlotComponent.scss";
 
 import {LineGLPlotComponent, TickType, MultiPlotProps} from "./PlotContainer/GLPlotComponent"
+type Trace = { x: number[], y: number[], color?: string };
 
 export enum ZoomMode {
     NONE,
@@ -105,6 +106,7 @@ export class LinePlotComponentProps {
     setSelectedRange?: (min: number, max: number) => void;
     order?: number;
     multiPlotPropsMap?: Map<string, MultiPlotProps>;
+    traces?: Trace[];
 }
 
 // Maximum time between double clicks
@@ -486,7 +488,7 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
     };
 
     onStageWheel = (ev) => {
-        if ((this.props.data || (this.props.multiPlotPropsMap && this.props.multiPlotPropsMap.size > 0) ) && this.props.scrollZoom && this.props.graphZoomedX && this.chartArea) {
+        if ((this.props.data || this.props.multiPlotPropsMap?.size || this.props.traces?.length ) && this.props.scrollZoom && this.props.graphZoomedX && this.chartArea) {
             const wheelEvent: WheelEvent = ev.evt;
             const chartArea = this.chartArea;
             const lineHeight = 15;
@@ -524,30 +526,6 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
         const now = new Date();
         return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}`;
     }
-
-    // private exportSubPlotImage(visible: boolean) {
-    //     const scatterChart = this.plotRef.chartInstance;
-    //     scatterChart.config.options.scales.xAxes[0].ticks.display = visible;
-    //     scatterChart.config.options.scales.xAxes[0].ticks.major.display = visible;
-    //     scatterChart.config.options.scales.xAxes[0].ticks.minor.display = visible;
-    //     let tickMarkLength = 10;
-    //     if (!visible) {
-    //         tickMarkLength = 0;
-    //     }
-    //     scatterChart.options.scales.xAxes[0].gridLines.tickMarkLength = tickMarkLength;
-    //     scatterChart.options.scales.xAxes[0].scaleLabel.display = visible;
-    //     scatterChart.update();
-    // }
-
-    // private showPlotxAxes() {
-    //     const scatterProps = this.plotRef.chartInstance;
-    //     if (this.props.isGroupSubPlot === true) {
-    //         if (scatterProps && scatterProps.options.scales.xAxes[0].ticks.display === false) {
-    //             return true;
-    //         }
-    //     }
-    //     return false;
-    // }
 
     private drawInlineSVG(svgElement: SVGSVGElement, ctx: CanvasRenderingContext2D): Promise<HTMLImageElement> {
         var svgURL = new XMLSerializer().serializeToString(svgElement);

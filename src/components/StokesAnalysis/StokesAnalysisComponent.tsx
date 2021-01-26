@@ -8,7 +8,7 @@ import {ChartArea} from "chart.js";
 import {CARTA} from "carta-protobuf";
 import {LinePlotComponent, LinePlotComponentProps, ProfilerInfoComponent, ScatterPlotComponent, ScatterPlotComponentProps, VERTICAL_RANGE_PADDING, PlotType, SmoothingType} from "components/Shared";
 import {StokesAnalysisToolbarComponent} from "./StokesAnalysisToolbarComponent/StokesAnalysisToolbarComponent";
-import {TickType, MultiPlotProps} from "../Shared/LinePlot/PlotContainer/PlotContainerComponent";
+import {TickType, MultiPlotProps} from "../Shared/LinePlot/PlotContainer/GLPlotComponent";
 import {SpectralProfileStore, DefaultWidgetConfig, WidgetProps, HelpType, AnimatorStore, WidgetsStore, AppStore} from "stores";
 import {StokesAnalysisWidgetStore, StokesCoordinate} from "stores/widgets";
 import {Point2D} from "models";
@@ -457,6 +457,7 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
 
     private assembleLinePlotData(profile: Array<number>, channelValues: Array<number>, type: StokesCoordinate): {
         dataset: Array<Point2D>,
+        // dataset: Trace,
         border: Border
     } {
         if (profile && profile.length && channelValues &&
@@ -563,23 +564,44 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
     }
 
     private fillLineColor(data: Array<Point2D>, lineColor: string): Array<string> {
-        let lineColors = [];
-        // n points have n-1 gaps between all points for line plot
-        if (this.widgetStore.plotType !== PlotType.POINTS) {
-            lineColors.push("");
-        }
-        if (data && data.length && lineColor) {
+        let lineColors = Array(data.length);
+        if (data?.length && lineColor) {
             for (let index = 0; index < data.length; index++) {
                 const point = data[index];
                 if (!(this.widgetStore.scatterOutRangePointsZIndex && this.widgetStore.scatterOutRangePointsZIndex.indexOf(point.x) >= 0)) {
-                    lineColors.push(lineColor);
-                } else {
-                    lineColors.push(this.multicolorLineColorOutRange);
+                    lineColors[index] = lineColor;
+                } 
+                else {
+                    lineColors[index] = this.multicolorLineColorOutRange;
                 }
             }
         }
         return lineColors;
     }
+
+    // private getColorTraces(data: Array<Point2D>,lineColor: string): Array<Trace> {
+    //     let traces = Array<Trace>(data?.length - 1);
+    //     if (data?.length && lineColor) {
+    //         for (let index = 0; index < data.length - 1; index++) {
+    //             const point = data[index];
+    //             const nextPoint = data[index + 1];
+    //             let trace: Trace = {x: new Array(2), y: new Array(2), color: lineColor};
+    //             trace.x[0] = point.x;
+    //             trace.x[1] = nextPoint.x;
+    //             trace.y[0] = point.y;
+    //             trace.y[1] = nextPoint.y;
+                
+    //             if (!(this.widgetStore.scatterOutRangePointsZIndex && this.widgetStore.scatterOutRangePointsZIndex.indexOf(point.x) >= 0)) {
+    //                 trace.color = lineColor;
+    //             } 
+    //             else {
+    //                 trace.color = this.multicolorLineColorOutRange;
+    //             }
+    //             traces[index] = trace;
+    //         }
+    //     }
+    //     return traces;
+    // }
 
     private closestChannel(channel: number, data: Array<{ x: number, y: number, z?: number }>): number {
         var mid;
@@ -974,12 +996,16 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
                     data: currentPlotData.qValues.dataset,
                     type: this.widgetStore.plotType,
                     borderColor: primaryLineColor,
+                    lineWidth: this.widgetStore.lineWidth,
+                    pointRadius: this.widgetStore.linePlotPointSize,
                     order: 1
                 };
                 let uPlotProps: MultiPlotProps = {
                     data: currentPlotData.uValues.dataset,
                     type: this.widgetStore.plotType,
                     borderColor: ulinePlotColor,
+                    lineWidth: this.widgetStore.lineWidth,
+                    pointRadius: this.widgetStore.linePlotPointSize,
                     order: 1
                 };
                 quLinePlotProps.multiPlotPropsMap.set(StokesCoordinate.LinearPolarizationQ, qPlotProps);

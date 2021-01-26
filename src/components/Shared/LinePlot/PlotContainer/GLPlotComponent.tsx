@@ -1,9 +1,8 @@
 import * as React from "react";
 import * as Plotly from "plotly.js";
 import * as D3 from "d3";
+import * as _ from "lodash";
 import Plot from "react-plotly.js";
-import {computed, makeObservable} from "mobx";
-import {observer} from "mobx-react";
 import {Figure} from "react-plotly.js";
 import {PlotType} from "components/Shared";
 import {Colors} from "@blueprintjs/core";
@@ -16,7 +15,7 @@ export enum TickType {
 }
 
 export class MultiPlotProps {
-    data: { x: number, y: number }[];
+    data?: { x: number, y: number }[];
     type: PlotType;
     borderColor?: string;
     lineWidth?: number;
@@ -26,7 +25,6 @@ export class MultiPlotProps {
 }
 
 export class LineGLPlotComponentProps {
-    //
     width: number;
     height: number;
     darkMode?: boolean; 
@@ -43,8 +41,6 @@ export class LineGLPlotComponentProps {
     lineWidth?: number;
     tickTypeX?: TickType;
     tickTypeY?: TickType;
-    // fixedRangeY: boolean;
-    // fixedRangeX: boolean;
     graphZoomedX?: (xMin: number, xMax: number) => void;
     graphZoomedY?: (yMin: number, yMax: number) => void;
     graphZoomReset?: () => void;
@@ -72,62 +68,120 @@ export class LineGLPlotComponentProps {
 
     // xZeroLineColor?: string;
     // yZeroLineColor?: string;
-    // showLegend?: boolean;
+    showLegend?: boolean;
     // xTickMarkLength?: number;
     // isGroupSubPlot?: boolean;
-    // multiColorSingleLineColors?: Array<string>;
-    // multiColorMultiLinesColors?: Map<string, Array<string>>;
 
     //?
     order?: number;
 }
 
-@observer
 export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProps> {
     public static marginTop: number = 5;
     public static marginBottom: number = 40;
     public static marginLeft: number = 70;
     public static marginRight: number = 10;
 
-    constructor(props: LineGLPlotComponentProps) {
-        super(props);
-        makeObservable(this);
-    }
-
-    @computed get LineGLData() {
-        let scatterDatasets: Plotly.Data[] = [];
-        scatterDatasets.push(
-                LineGLPlotComponent.updateLineData(
-                this.props.plotType, 
-                this.props.pointRadius * devicePixelRatio,
-                this.props.lineColor,
-                this.props.lineWidth * devicePixelRatio,
-                this.props.data
-            )
-        );
-
-        if (this.props.multiPlotPropsMap?.size) {
-            this.props.multiPlotPropsMap.forEach((line) => {
-                scatterDatasets.push(                
-                    LineGLPlotComponent.updateLineData(
-                        line.type, 
-                        line.pointRadius * devicePixelRatio,
-                        line.borderColor,
-                        line.lineWidth * devicePixelRatio, 
-                        line.data
-                    )
-                );
-            });
+    shouldComponentUpdate(nextProps: LineGLPlotComponentProps) {
+        const props = this.props;
+        // Basic prop check
+        if (props.width !== nextProps.width) {
+            return true;
+        } else if (props.height !== nextProps.height) {
+            return true;
+        } else if (props.lineColor !== nextProps.lineColor) {
+            return true;
+        } else if (props.opacity !== nextProps.opacity) {
+            return true;
+        } else if (props.tickTypeX !== nextProps.tickTypeX) {
+            return true;
+        } else if (props.tickTypeY !== nextProps.tickTypeY) {
+            return true;
+        } else if (props.darkMode !== nextProps.darkMode) {
+            return true;
+        } else if (props.logY !== nextProps.logY) {
+            return true;
+        } else if (props.xLabel !== nextProps.xLabel) {
+            return true;
+        } else if (props.xMin !== nextProps.xMin) {
+            return true;
+        } else if (props.xMax !== nextProps.xMax) {
+            return true;
+        } else if (props.yMin !== nextProps.yMin) {
+            return true;
+        } else if (props.yMax !== nextProps.yMax) {
+            return true;
+        } else if (props.yLabel !== nextProps.yLabel) {
+            return true;
+        } else if (props.showTopAxis !== nextProps.showTopAxis) {
+            return true;
+        } else if (props.topAxisTickFormatter !== nextProps.topAxisTickFormatter) {
+            return true;
+        } else if (props.showXAxisTicks !== nextProps.showXAxisTicks) {
+            return true;
+        } else if (props.showXAxisLabel !== nextProps.showXAxisLabel) {
+            return true;
+        } 
+        // else if (props.xZeroLineColor !== nextProps.xZeroLineColor) {
+        //     return true;
+        // } else if (props.yZeroLineColor !== nextProps.yZeroLineColor) {
+        //     return true;
+        // } 
+        else if (props.showLegend !== nextProps.showLegend) {
+            return true;
+        } 
+        // else if (props.xTickMarkLength !== nextProps.xTickMarkLength) {
+        //     return true;
+        // } 
+        else if (props.plotType !== nextProps.plotType) {
+            return true;
+        } else if (props.dataBackgroundColor !== nextProps.dataBackgroundColor) {
+            return true;
+        } 
+        // else if (props.isGroupSubPlot !== nextProps.isGroupSubPlot) {
+        //     return true;
+        // } 
+        else if (props.pointRadius !== nextProps.pointRadius) {
+            return true;
+        } else if (props.zeroLineWidth !== nextProps.zeroLineWidth) {
+            return true;
+        } else if (props.lineWidth !== nextProps.lineWidth) {
+            return true;
         }
 
-        return {data: scatterDatasets};
-    }
+        // Deep check of arrays (this should be optimised!)
+        if (props.data?.length !== nextProps.data?.length) {
+            return true;
+        }
 
-    @computed get tickVals() {
-        const nticks = Math.floor(this.props.width / 100);
-        let ticks = D3.scale.linear().domain([this.props.xMin, this.props.xMax]).ticks(nticks);
-        const topAxisTick = this.props.topAxisTickFormatter(ticks);
-        return {ticks, topAxisTick}
+        // NaN !== NaN is true
+        for (let i = 0; i < props.data?.length; i++) {
+            if (!_.isEqual(props.data[i].x, nextProps.data[i].x) || !_.isEqual(props.data[i].y, nextProps.data[i].y)) {
+                return true;
+            }
+        }
+
+        if (props.multiColorSingleLineColors?.length !== nextProps.multiColorSingleLineColors?.length) {
+            return true;
+        }
+
+        for (let i = 0; i < props.multiColorSingleLineColors?.length; i++) {
+            if (props.multiColorSingleLineColors[i] !== nextProps.multiColorSingleLineColors[i]) {
+                return true;
+            }
+        }
+
+        // Deep check of maps
+        if (!_.isEqual(props.multiPlotPropsMap, nextProps.multiPlotPropsMap)) {
+            return true;
+        }
+
+        if (!_.isEqual(props.multiColorMultiLinesColors, nextProps.multiColorMultiLinesColors)) {
+            return true;
+        }
+
+        // Skip any other changes
+        return false;
     }
 
     public render() {
@@ -211,71 +265,47 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             },
             margin: {
                 t: LineGLPlotComponent.marginTop * devicePixelRatio,
-                b: LineGLPlotComponent.marginBottom * devicePixelRatio,
+                b: !this.props.showXAxisLabel ? 8 : LineGLPlotComponent.marginBottom * devicePixelRatio,
                 l: this.props.showYAxisTicks === undefined ? LineGLPlotComponent.marginLeft * devicePixelRatio : 5,
                 r: LineGLPlotComponent.marginRight * devicePixelRatio,
                 pad: 0
-            },
-            showlegend: false
+            }, 
+            legend: {
+                x: 0.3,
+                y: 1,
+                bgcolor: "rgba(0,0,0,0)",
+                orientation: "h",
+                font: {
+                    family: fontFamily,
+                    size: 12 * devicePixelRatio,
+                    color: lableColor
+                }
+            }
         };
 
         if (this.props.showXAxisLabel === true) {
-            layout.xaxis.title = this.props.xLabel;
+            let titleX: string | Partial<Plotly.DataTitle> = {
+                text: this.props.xLabel,
+                standoff: 5
+            };
+            layout.xaxis.title = titleX;
         }
 
         if (this.props.showYAxisLabel === true) {
-            layout.yaxis.title = this.props.yLabel;
+            let standoff = 5;
+            if (this.props.tickTypeY === TickType.Integer) {
+                standoff = 55;
+            }
+            let titleY: string | Partial<Plotly.DataTitle> = {
+                text: this.props.yLabel,
+                standoff: standoff
+            };
+            layout.yaxis.title = titleY;
         }
 
-        // if (this.props.showImageMarke && this.props.cursorXImage) {
-        //     let cursorX: Partial<Plotly.Shape> = {
-        //         type: "line",
-        //         layer: "above",
-        //         x0: this.props.cursorXImage,
-        //         y0: this.props.yMin,
-        //         x1: this.props.cursorXImage,
-        //         y1: this.props.yMax,
-        //         line: {
-        //           color: this.props.darkMode ? Colors.RED4 : Colors.RED2,
-        //           width: 1 * devicePixelRatio
-        //         }
-        //     };
-        //     layout.shapes.push(cursorX);
-        //     // layout.shapes[0]["editable"] = true;
-        // }
-
-        // if (this.props.meanRmsVisible && isFinite(this.props.yMean) && isFinite(this.props.yRms)) {
-        //     let yRms: Partial<Plotly.Shape> = {
-        //         type: "rect",
-        //         x0: this.props.xMin,
-        //         y0: clamp(this.props.yMean - this.props.yRms, this.props.yMin, this.props.yMax),
-        //         x1: this.props.xMax,
-        //         y1: clamp(this.props.yMean + this.props.yRms, this.props.yMin, this.props.yMax),
-        //         fillcolor: this.props.darkMode ? Colors.GREEN4 : Colors.GREEN2,
-        //         opacity: 0.2,
-        //         line: {
-        //             width: 0
-        //         }
-        //     };
-
-        //     let yMean: Partial<Plotly.Shape> = {
-        //         type: "line",
-        //         x0: this.props.xMin,
-        //         y0: this.props.yMean,
-        //         x1: this.props.xMax,
-        //         y1: this.props.yMean,
-        //         line: {
-        //           color: this.props.darkMode ? Colors.GREEN4 : Colors.GREEN2,
-        //           width: 1 * devicePixelRatio,
-        //           dash: "dash"
-        //         }
-        //     };
-        //     layout.shapes.push(yRms, yMean);
-        // }
-
         let data: Plotly.Data[];
-        if (this.props.data) {
-            data = this.LineGLData.data;
+        if (this.props.data || this.props.multiPlotPropsMap?.size) {
+            data = this.LineGL().data;
             layout.xaxis.range = [this.props.xMin, this.props.xMax];
             layout.yaxis.range = [this.props.yMin, this.props.yMax];
 
@@ -283,7 +313,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 plotlyContainerScaleClass = "line-gl-plot-scale-top-axis";
                 plotlyContainerClass = "line-gl-plot-top-axis";
                 let trace2: Partial<Plotly.PlotData> = {};
-                let {ticks, topAxisTick} = this.tickVals;
+                let {ticks, topAxisTick} = this.tickVals();
                 layout.xaxis.tickvals = ticks;
                 layout.xaxis.ticktext = ticks.join().split(',');
 
@@ -294,6 +324,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 trace2.opacity = 0;
                 trace2.x = data[0].x;
                 trace2.y = data[0].y;
+                trace2.showlegend = false;
 
                 let xaxis2: Partial<Plotly.LayoutAxis> = {
                     side: "top",
@@ -350,14 +381,18 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
     }
 
     private static updateLineData (
+        traceType: Plotly.PlotType,
         plotType: PlotType, 
         pointRadius: number,
-        lineColor: string,
+        lineColor: string | string[],
         lineWidth: number,
-        data: { x: number, y: number }[] | { x: number, y: number, z?: number }[]
+        showlegend: boolean = false,
+        transformData: boolean,
+        data?: { x: number, y: number }[] | { x: number, y: number, z?: number }[],
+        traceName?: string
     ): Partial<Plotly.PlotData> {
         let trace: Partial<Plotly.PlotData> = {};
-        trace.type = "scattergl";
+        trace.type = traceType;
         trace.hoverinfo = "none";
         let marker: Partial<Plotly.PlotMarker> = {
             color: lineColor,
@@ -369,6 +404,10 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         };
         trace.marker = marker;
         trace.line = line;
+        trace.showlegend = showlegend;
+        if(showlegend) {
+            trace.name = traceName;
+        }
 
         switch (plotType) {
             case PlotType.STEPS:
@@ -384,14 +423,15 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 break;
         }
 
-        const dataSize = data.length;
-        trace.x = Array(dataSize);
-        trace.y = Array(dataSize);
-
-        for (let i = 0; i < data.length; i++) {
-            const point = data[i];
-            trace.x[i] = point.x;
-            trace.y[i] = point.y; 
+        if (transformData && data?.length) {
+            const dataSize = data.length;
+            trace.x = Array(dataSize);
+            trace.y = Array(dataSize);
+            for (let i = 0; i < data.length; i++) {
+                const point = data[i];
+                trace.x[i] = point.x;
+                trace.y[i] = point.y; 
+            }   
         }
 
         return trace;
@@ -405,5 +445,57 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             right: figure.layout.margin.r / devicePixelRatio
         });
         this.props.plotRefUpdated(graphDiv);
+    }
+
+    private LineGL() {
+        let scatterDatasets: Plotly.Data[] = [];
+        let color: string | string[] = this.props.lineColor;
+        if (this.props.plotType === PlotType.POINTS && this.props.multiColorSingleLineColors?.length) {
+            color = this.props.multiColorSingleLineColors;
+        }
+        if (this.props.data?.length) {
+            scatterDatasets.push(
+                LineGLPlotComponent.updateLineData(
+                    "scattergl",
+                    this.props.plotType, 
+                    this.props.pointRadius * devicePixelRatio,
+                    color,
+                    this.props.lineWidth * devicePixelRatio,
+                    this.props.showLegend,
+                    true,
+                    this.props.data
+                )   
+            );   
+        }
+        
+        if (this.props.multiPlotPropsMap?.size) {
+            this.props.multiPlotPropsMap.forEach((line, key) => {
+                let color: string | string[] = line.borderColor;
+                if (this.props.plotType === PlotType.POINTS && this.props.multiColorMultiLinesColors?.size) {
+                    color = this.props.multiColorMultiLinesColors.get(key);
+                }
+                scatterDatasets.push(                
+                    LineGLPlotComponent.updateLineData(
+                        "scattergl",
+                        line.type, 
+                        line.pointRadius * devicePixelRatio,
+                        color,
+                        line.lineWidth * devicePixelRatio,
+                        this.props.showLegend,
+                        true,
+                        line.data,
+                        key
+                    )
+                );
+            });
+        }
+        return {data: scatterDatasets};
+    }
+
+    private tickVals() {
+        const nticks = Math.floor(this.props.width / 100);
+        let ticks = D3.scale.linear().domain([this.props.xMin, this.props.xMax]).ticks(nticks);
+        const topAxisTick = this.props.topAxisTickFormatter(ticks);
+        return {ticks, topAxisTick}
     }
 }
