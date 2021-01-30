@@ -10,7 +10,7 @@ import ReactResizeDetector from "react-resize-detector";
 import {Arrow, Group, Layer, Line, Rect, Stage, Text} from "react-konva";
 // import {PlotContainerComponent, TickType, MultiPlotProps} from "./PlotContainer/PlotContainerComponent";
 // import {TickType, MultiPlotProps} from "./PlotContainer/PlotContainerComponent";
-import {ToolbarComponent} from "./Toolbar/ToolbarComponent";
+// import {ToolbarComponent} from "./Toolbar/ToolbarComponent";
 import {StokesCoordinate} from "stores/widgets/StokesAnalysisWidgetStore";
 import {Point2D} from "models";
 import {clamp, toExponential} from "utilities";
@@ -107,6 +107,10 @@ export class LinePlotComponentProps {
     order?: number;
     multiPlotPropsMap?: Map<string, MultiPlotProps>;
     traces?: Trace[];
+
+    shapes?: Partial<Plotly.Shape>[];
+    draggableAnnotation?: boolean;
+    onHover?: (x: number, y:number) => void;
 }
 
 // Maximum time between double clicks
@@ -540,73 +544,81 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
     }
 
     exportImage = () => {
-        const canvas = this.plotRef.getElementsByTagName("canvas")[0];
-        const svgs = this.plotRef.getElementsByTagName("svg");
+        const canvas = this.plotRef?.getElementsByTagName("canvas")[0];
+        const svgs = this.plotRef?.getElementsByTagName("svg");
 
-        const plotName = this.props.plotName || "unknown";
-        const imageName = this.props.imageName || "unknown";
+        if (canvas && svgs) {
+        
+            const plotName = this.props.plotName || "unknown";
+            const imageName = this.props.imageName || "unknown";
 
-        const composedCanvas = document.createElement("canvas") as HTMLCanvasElement;
-        composedCanvas.width = canvas.width;
-        composedCanvas.height = canvas.height;
+            const composedCanvas = document.createElement("canvas") as HTMLCanvasElement;
+            composedCanvas.width = canvas.width;
+            composedCanvas.height = canvas.height;
 
-        const ctx = composedCanvas.getContext("2d");
-        ctx.fillStyle = "rgba(255, 255, 255, 0.0)";
-        ctx.fillRect(0, 0, composedCanvas.width, composedCanvas.height);
+            const ctx = composedCanvas.getContext("2d");
 
-        // svgs 0 for grids, svgs 1 for titles in plotlyjs
-        Promise.all([this.drawInlineSVG(svgs[0], ctx), this.drawInlineSVG(svgs[1], ctx)]).then((images) =>{
-            ctx.drawImage(images[0], 0, 0);
-            ctx.drawImage(images[1], 0, 0);
-            ctx.drawImage(canvas, 0, 0);
-
-            // plot Mean/RMS
-            const meanRMS = this.genMeanRMSForPngPlot();
-            if (meanRMS?.mean) {
-                // plot mean
-                ctx.beginPath();
-                ctx.setLineDash([meanRMS.mean.dash]);
-                ctx.strokeStyle = meanRMS.mean.color;
-                ctx.lineWidth = 1;
-                ctx.moveTo(meanRMS.mean.xLeft, meanRMS.mean.y);
-                ctx.lineTo(meanRMS.mean.xRight, meanRMS.mean.y);
-                ctx.stroke();
+            let bgColor = Colors.LIGHT_GRAY5;
+            if (this.props.darkMode) {
+                bgColor = Colors.DARK_GRAY3;
             }
-            if (meanRMS?.RMS) {
-                // plot RMS
-                ctx.fillStyle = meanRMS.RMS.color;
-                ctx.globalAlpha = meanRMS.RMS.opacity;
-                ctx.fillRect(meanRMS.RMS.xLeft, meanRMS.RMS.yTop, meanRMS.RMS.width, meanRMS.RMS.height);
-                ctx.globalAlpha = 1.0;
-            }
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, composedCanvas.width, composedCanvas.height);
 
-            // plot spectral lines
-            const spectralLines = this.genSpectralLinesForPngPlot();
-            spectralLines?.forEach(spectralLine => {
-                // plot line
-                ctx.beginPath();
-                ctx.strokeStyle = spectralLine.color;
-                ctx.lineWidth = 1;
-                ctx.moveTo(spectralLine.x, spectralLine.yBottom);
-                ctx.lineTo(spectralLine.x, spectralLine.yTop);
-                ctx.stroke();
-                // plot rotated text
-                ctx.save();
-                ctx.font = "12px Arial";
-                ctx.translate(spectralLine.x, spectralLine.yBottom);
-                ctx.rotate(-Math.PI / 2);
-                ctx.fillStyle = spectralLine.color;
-                ctx.fillText(spectralLine.text, 0, 10);
-                ctx.restore();
+            // svgs 0 for grids, svgs 1 for titles in plotlyjs
+            Promise.all([this.drawInlineSVG(svgs[0], ctx), this.drawInlineSVG(svgs[1], ctx)]).then((images) =>{
+                ctx.drawImage(images[0], 0, 0);
+                ctx.drawImage(images[1], 0, 0);
+                ctx.drawImage(canvas, 0, 0);
+
+                // plot Mean/RMS
+                // const meanRMS = this.genMeanRMSForPngPlot();
+                // if (meanRMS?.mean) {
+                //     // plot mean
+                //     ctx.beginPath();
+                //     ctx.setLineDash([meanRMS.mean.dash]);
+                //     ctx.strokeStyle = meanRMS.mean.color;
+                //     ctx.lineWidth = 1;
+                //     ctx.moveTo(meanRMS.mean.xLeft, meanRMS.mean.y);
+                //     ctx.lineTo(meanRMS.mean.xRight, meanRMS.mean.y);
+                //     ctx.stroke();
+                // }
+                // if (meanRMS?.RMS) {
+                //     // plot RMS
+                //     ctx.fillStyle = meanRMS.RMS.color;
+                //     ctx.globalAlpha = meanRMS.RMS.opacity;
+                //     ctx.fillRect(meanRMS.RMS.xLeft, meanRMS.RMS.yTop, meanRMS.RMS.width, meanRMS.RMS.height);
+                //     ctx.globalAlpha = 1.0;
+                // }
+
+                // plot spectral lines
+                const spectralLines = this.genSpectralLinesForPngPlot();
+                spectralLines?.forEach(spectralLine => {
+                    // plot line
+                    ctx.beginPath();
+                    ctx.strokeStyle = spectralLine.color;
+                    ctx.lineWidth = 1;
+                    ctx.moveTo(spectralLine.x, spectralLine.yBottom);
+                    ctx.lineTo(spectralLine.x, spectralLine.yTop);
+                    ctx.stroke();
+                    // plot rotated text
+                    ctx.save();
+                    ctx.font = "12px Arial";
+                    ctx.translate(spectralLine.x, spectralLine.yBottom);
+                    ctx.rotate(-Math.PI / 2);
+                    ctx.fillStyle = spectralLine.color;
+                    ctx.fillText(spectralLine.text, 0, 10);
+                    ctx.restore();
+                });
+
+                composedCanvas.toBlob((blob) => {
+                    const link = document.createElement("a") as HTMLAnchorElement;
+                    link.download = `${imageName}-${plotName.replace(" ", "-")}-${LinePlotComponent.GetTimestamp()}.png`;
+                    link.href = URL.createObjectURL(blob);
+                    link.dispatchEvent(new MouseEvent("click"));
+                }, "image/png");
             });
-
-            composedCanvas.toBlob((blob) => {
-                const link = document.createElement("a") as HTMLAnchorElement;
-                link.download = `${imageName}-${plotName.replace(" ", "-")}-${LinePlotComponent.GetTimestamp()}.png`;
-                link.href = URL.createObjectURL(blob);
-                link.dispatchEvent(new MouseEvent("click"));
-            }, "image/png");
-        });
+        }
     };
 
     exportData = () => {
@@ -767,7 +779,7 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
             const arrowSize = MARKER_HITBOX_THICKNESS / 1.5;
             const arrowStart = 3;
             lineSegments = [
-                <Line listening={false} key={0} points={[0, chartArea.top, 0, chartArea.bottom]} strokeWidth={1} stroke={markerColor} opacity={markerOpacity}/>,
+                <Line listening={false} key={0} points={[0, 0, 0, chartArea.bottom]} strokeWidth={1} stroke={markerColor} opacity={markerOpacity}/>,
                 <Arrow listening={false} key={1} x={0} y={midPoint} points={[-arrowStart, 0, -arrowStart - arrowSize, 0]} pointerLength={arrowSize} pointerWidth={arrowSize} opacity={markerOpacity} fill={markerColor}/>,
                 <Arrow listening={false} key={2} x={0} y={midPoint} points={[arrowStart, 0, arrowStart + arrowSize, 0]} pointerLength={arrowSize} pointerWidth={arrowSize} opacity={markerOpacity} fill={markerColor}/>
             ];
@@ -781,11 +793,11 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
                     <Rect listening={false} key={0} x={lowerBound - valueCanvasSpace} y={chartArea.top} width={croppedThickness} height={lineHeight} fill={markerColor} opacity={markerOpacity}/>
                 )];
             } else {
-                lineSegments = [<Line listening={false} key={0} points={[0, chartArea.top, 0, chartArea.bottom]} strokeWidth={1} stroke={markerColor} opacity={markerOpacity} dash={marker.dash}/>];
+                lineSegments = [<Line listening={false} key={0} points={[0, 0, 0, chartArea.bottom]} strokeWidth={1} stroke={markerColor} opacity={markerOpacity} dash={marker.dash}/>];
             }
         }
         if (isShowingLabels && marker.label) {
-            lineSegments.push(<Text align={"left"} fill={markerColor} key={lineSegments.length} text={marker.label} rotation={-90} x={0} y={chartArea.bottom}/>);
+            lineSegments.push(<Text align={"left"} fill={markerColor} key={lineSegments.length} text={marker.label} rotation={-90} x={0} y={chartArea.bottom - 10}/>);
         }
 
         if (marker.draggable) {
@@ -835,13 +847,13 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
                 const markerColor = marker.color || (this.props.darkMode ? Colors.RED4 : Colors.RED2);
                 const markerOpacity = (marker.isMouseMove && (!this.isMouseEntered || this.isMarkerDragging)) ? 0 : (marker.opacity || 1);
                 if (marker.horizontal) {
-                    let valueCanvasSpace = this.getCanvasSpaceY(marker.value);
+                    let valueCanvasSpace = this.getCanvasSpaceY(marker.value) ;
                     if (isNaN(valueCanvasSpace)) {
                         continue;
                     }
                     lines.push(this.genHorizontalLine(marker, isHovering, markerColor, markerOpacity, valueCanvasSpace));
                 } else {
-                    let valueCanvasSpace = this.getCanvasSpaceX(marker.value);
+                    let valueCanvasSpace = this.getCanvasSpaceX(marker.value) - this.chartArea.left;
                     if (isNaN(valueCanvasSpace)) {
                         continue;
                     }
@@ -995,7 +1007,7 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
             <div
                 className={"line-plot-component"}
                 style={{cursor: this.cursorShape}}
-                onKeyDown={this.onKeyDown}
+                // onKeyDown={this.onKeyDown}
                 onMouseEnter={this.onMouseEnter}
                 onMouseMove={this.onMouseMove}
                 onMouseLeave={this.onMouseLeave}
@@ -1009,18 +1021,22 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
                     updateChartMargin={this.updateChartMargin}
                     width={this.width}
                     height={this.height}
+                    onExportData={this.exportData}
+                    onExportImage={this.exportImage}
+
                 />
                 }
-                {this.width > 0 && this.height > 0 &&
+                {this.width > 0 && this.height > 0 && this.props.draggableAnnotation &&
                 <Stage
                     className={"annotation-stage"}
                     ref={ref => this.stageRef = ref}
-                    width={this.width}
-                    height={this.height}
-                    onMouseDown={this.onStageMouseDown}
-                    onMouseUp={this.onStageMouseUp}
-                    onContextMenu={this.onStageRightClick}
-                    onMouseMove={this.onStageMouseMove}
+                    width={this.chartArea.right - this.chartArea.left}
+                    height={this.chartArea.bottom - this.chartArea.top}
+                    style={{top: this.chartArea.top, left: this.chartArea.left, position: "absolute"}}
+                    // onMouseDown={this.onStageMouseDown}
+                    // onMouseUp={this.onStageMouseUp}
+                    // onContextMenu={this.onStageRightClick}
+                    // onMouseMove={this.onStageMouseMove}
                     onWheel={this.onStageWheel}
                 >
                     <Layer>
@@ -1030,12 +1046,12 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
                     </Layer>
                 </Stage>
                 }
-                <ToolbarComponent
+                {/* <ToolbarComponent
                     darkMode={this.props.darkMode}
                     visible={this.isMouseEntered && (this.props.data !== undefined || (this.props.multiPlotPropsMap && this.props.multiPlotPropsMap.size > 0))}
                     exportImage={this.exportImage}
                     exportData={this.exportData}
-                />
+                /> */}
             </div>
         );
     }

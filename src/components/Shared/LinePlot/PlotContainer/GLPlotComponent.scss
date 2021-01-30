@@ -3,31 +3,64 @@
 }
 
 .line-gl-plot-scale {
-    .js-plotly-plot .plotly .modebar {
-        transform: scale(2);
-        top: 20px;
-        right: 80px;
-    }
-}
+    .js-plotly-plot .plotly {
+        .modebar-container {
+            position: absolute;
+            bottom: 35px !important;
+            right: 60px !important;
+            top: unset !important;
+            width: 100%;
+            .modebar {
+                transform: scale(2);
+            }
+        }
+        .main-svg {
+            .zoomlayer {
+                .zoombox {
+                    fill: rgba(16, 22, 26, 0.4) !important;
+                    stroke-width: 0px;
+                }
+                .zoombox-corners {
+                    fill: rgba(95, 115, 130, 1) !important;
+                    stroke: rgba(95, 115, 130, 1) !important;
+                    stroke-width: 2px !important;
+                    opacity: 1;
+                }
+            }
+        }
+        [data-title]::before {
+            top: -30px;
+            right: 50%;
+            border-color: rgb(105, 115, 138) transparent transparent transparent;
+            margin-top: 28px;
+        }
 
-.line-gl-plot-scale-top-axis {
-    .js-plotly-plot .plotly .modebar {
-        transform: scale(2);
-        top: 70px;
-        right: 80px;
+        [data-title]::after {
+            top: -30px;
+        }
     }
+
 }
 
 .line-gl-plot {
-    .js-plotly-plot .plotly .modebar {
-        top: 2px;
-        right: 2px;
-    }
-}
+    .js-plotly-plot .plotly { 
+        .modebar-container {
+            position: absolute;
+            bottom: 20px !important;
+            right: 2px !important;
+            top: unset !important;
+            width: 100%;
+        }
+        
+        [data-title]::before {
+            top: -30px;
+            right: 50%;
+            border-color: rgb(105, 115, 138) transparent transparent transparent;
+            margin-top: 28px;
+        }
 
-.line-gl-plot-top-axis {
-    .js-plotly-plot .plotly .modebar {
-        top: 30px;
-        right: 2px ;
+        [data-title]::after {
+            top: -30px;
+        }
     }
 }

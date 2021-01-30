@@ -10,7 +10,7 @@ import {TickType, MultiPlotProps} from "../Shared/LinePlot/PlotContainer/PlotCon
 import {AppStore, ASTSettingsString, DefaultWidgetConfig, FrameStore, HelpType, OverlayStore, SpatialProfileStore, WidgetProps, WidgetsStore} from "stores";
 import {SpatialProfileWidgetStore} from "stores/widgets";
 import {Point2D} from "models";
-import {binarySearchByX, clamp, formattedExponential, transformPoint, toFixed} from "utilities";
+import {clamp, formattedExponential, transformPoint, toFixed} from "utilities";
 import "./SpatialProfilerComponent.scss";
 
 // The fixed size of the settings panel popover (excluding the show/hide button)
@@ -40,6 +40,12 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
     // auto-scaling range
     @observable autoScaleHorizontalMin: number;
     @observable autoScaleHorizontalMax: number;
+
+    @observable hoverinfo: {x: number, y:number};
+
+     @action updateHoverInfo = (x: number, y:number) => {
+         this.hoverinfo = {x: x, y: y};
+     }
 
     @computed get widgetStore(): SpatialProfileWidgetStore {
         const widgetsStore = WidgetsStore.Instance;
@@ -188,6 +194,7 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
     constructor(props: WidgetProps) {
         super(props);
         makeObservable(this);
+        this.hoverinfo = {x: undefined, y: undefined};
 
         const appStore = AppStore.Instance;
         // Check if this widget hasn't been assigned an ID yet
@@ -325,22 +332,27 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
         return this.cachedFormattedCoordinates;
     };
 
-    private genProfilerInfo = (): string[] => {
+    @computed get genProfilerInfo(): string[] {
         let profilerInfo: string[] = [];
-        if (this.plotData) {
+        // if (this.plotData) {
+        if (this.frame !== undefined && this.frame !== null) {
             const isXCoordinate = this.widgetStore.coordinate.indexOf("x") >= 0;
-            if (this.widgetStore.isMouseMoveIntoLinePlots) { // handle the value when cursor is in profiler
-                const nearest = binarySearchByX(this.plotData.values, this.widgetStore.cursorX);
-                if (nearest?.point) {
-                    const pixelPoint = isXCoordinate ?
-                        {x: nearest.point.x, y: this.profileStore.y} :
-                        {x: this.profileStore.x, y: nearest.point.x};
-                    const cursorInfo = this.frame.getCursorInfo(pixelPoint);
-                    const wcsLabel = cursorInfo?.infoWCS ? `WCS: ${isXCoordinate ? cursorInfo.infoWCS.x : cursorInfo.infoWCS.y}, ` : "";
-                    const imageLabel = `Image: ${nearest.point.x} px, `;
-                    const valueLabel = `${nearest.point.y !== undefined ? formattedExponential(nearest.point.y, 5) : ""}`;
-                    profilerInfo.push("Cursor: (" + wcsLabel + imageLabel + valueLabel + ")");
-                }
+            // if (this.widgetStore.isMouseMoveIntoLinePlots) { // handle the value when cursor is in profiler
+            //     const nearest = binarySearchByX(this.plotData.values, this.widgetStore.cursorX);
+            //  if (nearest?.point) {
+            if (this.hoverinfo.x !== undefined && this.hoverinfo.y !== undefined && this.widgetStore.isMouseMoveIntoLinePlots) { 
+                const pixelPoint = isXCoordinate ?
+                    // {x: nearest.point.x, y: this.profileStore.y} :
+                    // {x: this.profileStore.x, y: nearest.point.x};
+                    {x: this.hoverinfo.x, y: this.profileStore.y} :
+                    {x: this.profileStore.x, y: this.hoverinfo.x};
+                const cursorInfo = this.frame.getCursorInfo(pixelPoint);
+                const wcsLabel = cursorInfo?.infoWCS ? `WCS: ${isXCoordinate ? cursorInfo.infoWCS.x : cursorInfo.infoWCS.y}, ` : "";
+                // const imageLabel = `Image: ${nearest.point.x} px, `;
+                // const valueLabel = `${nearest.point.y !== undefined ? formattedExponential(nearest.point.y, 5) : ""}`;
+                const imageLabel = `Image: ${this.hoverinfo.x} px, `;
+                const valueLabel = `${this.hoverinfo.y !== undefined ? formattedExponential(this.hoverinfo.y, 5) : ""}`;
+                profilerInfo.push("Cursor: (" + wcsLabel + imageLabel + valueLabel + ")");
             } else { // get value directly from frame when cursor is in image viewer
                 const cursorInfo = this.frame.cursorInfo;
                 const cursorValue = this.frame.cursorValue?.value;
@@ -351,7 +363,7 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
                     profilerInfo.push("Data: (" + wcsLabel + imageLabel + valueLabel + ")");
                 }
             }
-            if (this.widgetStore.meanRmsVisible) {
+            if (this.widgetStore.meanRmsVisible && this.plotData) {
                 profilerInfo.push(`Mean/RMS: ${formattedExponential(this.plotData.yMean, 2) + " / " + formattedExponential(this.plotData.yRms, 2)}`);
             }
         }
@@ -394,7 +406,9 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
             lineWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
             multiPlotPropsMap: new Map(),
-            order: 1
+            order: 1,
+            draggableAnnotation: false,
+            onHover: this.updateHoverInfo
         };
 
         if (appStore.activeFrame) {
@@ -468,40 +482,52 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
                     image: isXProfile ? this.profileStore.x : this.profileStore.y,
                     unit: "px"
                 };
-                linePlotProps.markers = [{
-                    value: cursorX.image,
-                    id: "marker-image-cursor",
-                    draggable: false,
-                    horizontal: false,
+                linePlotProps.shapes = [{
+                    type: "line",
+                    x0: cursorX.image,
+                    y0: linePlotProps.yMin,
+                    x1: cursorX.image,
+                    y1: linePlotProps.yMax,
+                    line: {
+                        color: appStore.darkTheme ? Colors.RED4 : Colors.RED2,
+                        width: 1 * devicePixelRatio
+                    }
                 }];
-                linePlotProps.markers.push({
-                    value: cursorX.profiler,
-                    id: "marker-profiler-cursor",
-                    draggable: false,
-                    horizontal: false,
-                    color: appStore.darkTheme ? Colors.GRAY4 : Colors.GRAY2,
-                    opacity: 0.8,
-                    isMouseMove: true,
-                });
+                // linePlotProps.markers.push({
+                //     value: cursorX.profiler,
+                //     id: "marker-profiler-cursor",
+                //     draggable: false,
+                //     horizontal: false,
+                //     color: appStore.darkTheme ? Colors.GRAY4 : Colors.GRAY2,
+                //     opacity: 0.8,
+                //     isMouseMove: true,
+                // });
 
                 if (this.widgetStore.meanRmsVisible && currentPlotData && isFinite(currentPlotData.yMean) && isFinite(currentPlotData.yRms)) {
-                    linePlotProps.markers.push({
-                        value: currentPlotData.yMean,
-                        id: "marker-mean",
-                        draggable: false,
-                        horizontal: true,
-                        color: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2,
-                        dash: [5]
+                    linePlotProps.shapes.push({
+                        type: "rect",
+                        x0: linePlotProps.xMin,
+                        y0: clamp(currentPlotData.yMean - currentPlotData.yRms, linePlotProps.yMin, linePlotProps.yMax),
+                        x1: linePlotProps.xMax,
+                        y1: clamp(currentPlotData.yMean + currentPlotData.yRms, linePlotProps.yMin, linePlotProps.yMax),
+                        fillcolor: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2,
+                        opacity: 0.2,
+                        line: {
+                            width: 0
+                        }
                     });
 
-                    linePlotProps.markers.push({
-                        value: currentPlotData.yMean,
-                        id: "marker-rms",
-                        draggable: false,
-                        horizontal: true,
-                        width: currentPlotData.yRms,
-                        opacity: 0.2,
-                        color: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2
+                    linePlotProps.shapes.push({
+                        type: "line",
+                        x0: linePlotProps.xMin,
+                        y0: currentPlotData.yMean,
+                        x1: linePlotProps.xMax,
+                        y1: currentPlotData.yMean,
+                        line: {
+                            color: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2,
+                            width: 1 * devicePixelRatio,
+                            dash: "dash"
+                        }
                     });
                 }
 
@@ -518,7 +544,7 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
                     <div className="profile-plot">
                         <LinePlotComponent {...linePlotProps}/>
                     </div>
-                    <ProfilerInfoComponent info={this.genProfilerInfo()}/>
+                    <ProfilerInfoComponent info={this.genProfilerInfo}/>
                 </div>
                 <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} refreshMode={"throttle"} refreshRate={33}/>
             </div>
