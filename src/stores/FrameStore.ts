@@ -50,8 +50,8 @@ export enum RasterRenderType {
 export const WCS_PRECISION = 10;
 
 export class FrameStore {
-    private readonly astFrameSet: number;
-    private readonly astMapping: number;
+    public readonly astFrameSet: number;
+    public readonly astMapping: number;
     private readonly spectralFrame: number;
     public spectralCoordsSupported: Map<string, { type: SpectralType, unit: SpectralUnit }>;
     public spectralSystemsSupported: Array<SpectralSystem>;
