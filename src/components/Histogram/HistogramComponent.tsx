@@ -213,6 +213,8 @@ export class HistogramComponent extends React.Component<WidgetProps> {
             yLabel: "Count",
             showXAxisLabel: true,
             showYAxisLabel: true,
+            showXAxisTicks: true,
+            showYAxisTicks: true,
             darkMode: appStore.darkTheme,
             imageName: imageName,
             plotName: plotName,

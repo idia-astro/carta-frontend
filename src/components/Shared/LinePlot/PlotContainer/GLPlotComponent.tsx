@@ -49,8 +49,6 @@ export class LineGLPlotComponentProps {
 
     showTopAxis?: boolean;
     topAxisTickFormatter?: (values: number[]) => string[];
-    showXAxisTicks?: boolean;
-    showYAxisTicks?: boolean;
     zeroLineWidth?: number;
     plotRefUpdated?: (plotRef: any) => void;
 
@@ -65,13 +63,15 @@ export class LineGLPlotComponentProps {
     logY?: boolean;
     // scatter
     opacity?: number;
-    dataBackgroundColor?: Array<string>;
+    scatterPointColor?: Array<string>;
     pointRadius?: number;
     multiColorSingleLineColors?: Array<string>;
     multiColorMultiLinesColors?: Map<string, Array<string>>;
     
     showXAxisLabel: boolean;
     showYAxisLabel: boolean;
+    showXAxisTicks: boolean;
+    showYAxisTicks: boolean;
 
     // xZeroLineColor?: string;
     // yZeroLineColor?: string;
@@ -88,6 +88,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
     public static marginBottom: number = 40;
     public static marginLeft: number = 70;
     public static marginRight: number = 10;
+    private chartMargin: { top: number, bottom: number, left: number, right: number };
 
     shouldComponentUpdate(nextProps: LineGLPlotComponentProps) {
         const props = this.props;
@@ -142,7 +143,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         // } 
         else if (props.plotType !== nextProps.plotType) {
             return true;
-        } else if (props.dataBackgroundColor !== nextProps.dataBackgroundColor) {
+        } else if (props.scatterPointColor !== nextProps.scatterPointColor) {
             return true;
         } else if (props.colorable !== nextProps.colorable) {
             return true;
@@ -275,7 +276,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             margin: {
                 t: LineGLPlotComponent.marginTop * devicePixelRatio,
                 b: !this.props.showXAxisLabel ? 8 : LineGLPlotComponent.marginBottom * devicePixelRatio,
-                l: this.props.showYAxisTicks === undefined ? LineGLPlotComponent.marginLeft * devicePixelRatio : 5,
+                l: this.props.showYAxisTicks ? LineGLPlotComponent.marginLeft * devicePixelRatio : 5,
                 r: LineGLPlotComponent.marginRight * devicePixelRatio,
                 pad: 0
             }, 
@@ -427,17 +428,18 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         lineColor: string | string[],
         lineWidth: number,
         showlegend: boolean = false,
-        transformData: boolean,
         colorable: boolean,
+        opacity: number,
         data?: { x: number, y: number }[] | { x: number, y: number, z?: number }[],
-        traceName?: string
+        scatterPointColor?: Array<string>, 
+        traceName?: string 
     ): Partial<Plotly.PlotData> {
         let trace: Partial<Plotly.PlotData> = {};
         trace.type = traceType;
         trace.hoverinfo = "none";
         let marker: Partial<Plotly.PlotMarker> = {
             color: lineColor,
-            opacity: 1
+            opacity: opacity
         };
 
         let line: Partial<Plotly.ScatterLine> = {
@@ -463,13 +465,16 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             case PlotType.POINTS:
                 trace.mode = "markers";
                 trace.marker.size = pointRadius;
+                if (scatterPointColor?.length) {
+                    trace.marker.color = scatterPointColor;
+                }
                 break;
             default:
                 trace.mode = "lines";
                 break;
         }
 
-        if (transformData && data?.length) {
+        if (data?.length) {
             const dataSize = data.length;
             trace.x = Array(dataSize);
             trace.y = Array(dataSize);
@@ -483,12 +488,17 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
     }
 
     private onUpdate = (figure: Figure, graphDiv: Readonly<HTMLElement>) => {
-        this.props.updateChartMargin({
+        const margin = {
             top: figure.layout.margin.t / devicePixelRatio,
             bottom: figure.layout.margin.b / devicePixelRatio,
             left: figure.layout.margin.l / devicePixelRatio,
             right: figure.layout.margin.r / devicePixelRatio
-        });
+        }
+
+        if (!_.isEqual(margin, this.chartMargin)) {
+            this.chartMargin = margin;
+            this.props.updateChartMargin(margin);
+        }
         this.props.plotRefUpdated(graphDiv);
     }
 
@@ -535,9 +545,10 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                     color,
                     this.props.lineWidth * devicePixelRatio,
                     this.props.showLegend,
-                    true,
                     this.props.colorable,
-                    this.props.data
+                    this.props.opacity,
+                    this.props.data,
+                    this.props.scatterPointColor
                 )   
             );   
         }
@@ -556,9 +567,10 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                         color,
                         line.lineWidth * devicePixelRatio,
                         this.props.showLegend,
-                        true,
                         this.props.colorable,
+                        this.props.opacity,
                         line.data,
+                        [],
                         key
                     )
                 );

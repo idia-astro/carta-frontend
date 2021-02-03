@@ -308,6 +308,7 @@ export class ContourDialogComponent extends React.Component {
             logY: this.widgetStore.logScaleY,
             plotType: this.widgetStore.plotType,
             showYAxisTicks: false,
+            showXAxisTicks: true,
             showXAxisLabel: true,
             showYAxisLabel: false,
             graphClicked: this.handleGraphClicked,

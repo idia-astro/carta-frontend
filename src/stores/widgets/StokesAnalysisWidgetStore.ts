@@ -28,7 +28,7 @@ const DEFAULTS = {
         secondaryLineColor: { colorHex: Colors.ORANGE2, fixed: false },
         lineWidth: 1,
         linePlotPointSize: 1.5,
-        scatterPlotPointSize: 3,
+        scatterPlotPointSize: 5,
         equalAxes: true,
         colorMap: "jet",
         pointTransparency: 1

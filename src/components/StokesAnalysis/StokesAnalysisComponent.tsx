@@ -851,6 +851,7 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             imageName: imageName,
             plotName: "profile",
             tickTypeY: TickType.Scientific,
+            showYAxisTicks: true,
             showXAxisTicks: false,
             showXAxisLabel: false,
             showYAxisLabel: true,
@@ -882,6 +883,7 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             imageName: imageName,
             plotName: "profile",
             tickTypeY: TickType.Scientific,
+            showYAxisTicks: true,
             showXAxisTicks: false,
             showXAxisLabel: false,
             showYAxisLabel: true,
@@ -912,8 +914,8 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             imageName: imageName,
             plotName: "profile",
             tickTypeY: TickType.Integer,
-            // tickTypeY: TickType.Scientific,
             showXAxisTicks: true,
+            showYAxisTicks: true,
             showXAxisLabel: true,
             showYAxisLabel: true,
             graphCursorMoved: this.onGraphCursorMoved,
@@ -945,6 +947,8 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             tickTypeY: TickType.Scientific,
             showXAxisTicks: true,
             showXAxisLabel: true,
+            showYAxisLabel: true,
+            showYAxisTicks: true,
             plotType: PlotType.POINTS,
             zeroLineWidth: 2,
             isGroupSubPlot: true,
@@ -1092,8 +1096,8 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
                         paLinePlotProps.xMax = this.widgetStore.sharedMaxX;
                         interactionBorder = {xMin: this.widgetStore.sharedMinX, xMax: this.widgetStore.sharedMaxX};
                     }
-                    let dataBackgroundColor = this.fillScatterColor(quScatterPlotProps.data, interactionBorder, true);
-                    quScatterPlotProps.dataBackgroundColor = dataBackgroundColor;
+                    let scatterPointColor = this.fillScatterColor(quScatterPlotProps.data, interactionBorder, true);
+                    quScatterPlotProps.scatterPointColor = scatterPointColor;
 
                     if (this.widgetStore.isQULinePlotAutoScaledY) {
                         quLinePlotProps.yMin = qBorder.yMin < uBorder.yMin ? qBorder.yMin : uBorder.yMin;

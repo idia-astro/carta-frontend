@@ -355,6 +355,8 @@ export class SpectralProfilerComponent extends React.Component<WidgetProps> {
             yLabel: "Value",
             showXAxisLabel: true,
             showYAxisLabel: true,
+            showXAxisTicks: true,
+            showYAxisTicks: true,
             darkMode: appStore.darkTheme,
             imageName: imageName,
             plotName: `Z profile`,

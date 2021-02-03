@@ -85,9 +85,9 @@ export class LinePlotComponentProps {
     graphZoomReset?: () => void;
     graphCursorMoved?: (x: number) => void;
     scrollZoom?: boolean;
-    showXAxisTicks?: boolean;
+    showXAxisTicks: boolean;
     showXAxisLabel: boolean;
-    showYAxisTicks?: boolean;
+    showYAxisTicks: boolean;
     showYAxisLabel: boolean;
     yZeroLineColor?: string;
     showLegend?: boolean;
@@ -493,7 +493,7 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
             const wheelEvent: WheelEvent = ev.evt;
             const chartArea = this.chartArea;
             const lineHeight = 15;
-            const zoomSpeed = 0.002;
+            const zoomSpeed = 0.0015;
             if (wheelEvent.offsetX > chartArea.right || wheelEvent.offsetX < chartArea.left) {
                 return;
             }

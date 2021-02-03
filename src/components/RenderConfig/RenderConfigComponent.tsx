@@ -263,6 +263,7 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
             plotName: plotName,
             logY: this.widgetStore.logScaleY,
             plotType: this.widgetStore.plotType,
+            showXAxisTicks: true,
             showYAxisTicks: false,
             showXAxisLabel: true,
             showYAxisLabel: false,

@@ -377,6 +377,8 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
             yLabel: "Value",
             showXAxisLabel: true,
             showYAxisLabel: true,
+            showXAxisTicks: true,
+            showYAxisTicks: true,
             darkMode: appStore.darkTheme,
             imageName: imageName,
             plotName: `${isXProfile ? "X" : "Y"} profile`,

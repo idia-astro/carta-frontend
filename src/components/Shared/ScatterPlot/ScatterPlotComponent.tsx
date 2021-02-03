@@ -3,11 +3,11 @@ import {observer} from "mobx-react";
 import {action, computed, makeObservable, observable} from "mobx";
 import {ESCAPE} from "@blueprintjs/core/lib/cjs/common/keys";
 import {Colors} from "@blueprintjs/core";
-import {Scatter} from "react-chartjs-2";
 import ReactResizeDetector from "react-resize-detector";
 import {Layer, Stage, Group, Line, Ring, Rect} from "react-konva";
 import {ChartArea} from "chart.js";
-import {PlotContainerComponent, TickType, MultiPlotProps} from "components/Shared/LinePlot/PlotContainer/PlotContainerComponent";
+// import {PlotContainerComponent, TickType, MultiPlotProps} from "components/Shared/LinePlot/PlotContainer/PlotContainerComponent";
+import {LineGLPlotComponent, TickType, MultiPlotProps} from "components/Shared/LinePlot/PlotContainer/GLPlotComponent";
 import {ToolbarComponent} from "components/Shared/LinePlot/Toolbar/ToolbarComponent";
 import {ZoomMode, InteractionMode} from "components/Shared/LinePlot/LinePlotComponent";
 import { PlotType } from "../PlotTypeSelector/PlotTypeSelectorComponent";
@@ -40,7 +40,7 @@ export class ScatterPlotComponentProps {
     tickTypeX?: TickType;
     tickTypeY?: TickType;
     showTopAxis?: boolean;
-    topAxisTickFormatter?: (value: number, index: number, values: number[]) => string | number;
+    // topAxisTickFormatter?: (value: number, index: number, values: number[]) => string | number;
     graphClicked?: (x: number, y: number, data: { x: number, y: number, z?: number }[]) => void;
     graphRightClicked?: (x: number) => void;
     graphZoomedX?: (xMin: number, xMax: number) => void;
@@ -51,14 +51,14 @@ export class ScatterPlotComponentProps {
     mouseEntered?: (value: boolean) => void;
     scrollZoom?: boolean;
     colorRangeEnd?: number;
-    showXAxisTicks?: boolean;
-    showXAxisLabel?: boolean;
+    showXAxisTicks: boolean;
+    showYAxisTicks: boolean;
     xZeroLineColor?: string;
     yZeroLineColor?: string;
     showLegend?: boolean;
     xTickMarkLength?: number;
     plotType?: PlotType;
-    dataBackgroundColor?: Array<string>;
+    scatterPointColor?: Array<string>;
     isGroupSubPlot?: boolean;
     zIndex?: boolean;
     pointRadius?: number;
@@ -67,6 +67,8 @@ export class ScatterPlotComponentProps {
     cursorNearestPoint?: { x: number, y: number };
     updateChartArea?: (chartArea: ChartArea) => void;
     multiPlotPropsMap?: Map<string, MultiPlotProps>;
+    showXAxisLabel: boolean;
+    showYAxisLabel: boolean;
 }
 
 // Maximum time between double clicks
@@ -92,11 +94,11 @@ export class ScatterPlotComponent extends React.Component<ScatterPlotComponentPr
     @observable selectionBoxStart = {x: 0, y: 0};
     @observable selectionBoxEnd = {x: 0, y: 0};
 
-    @observable chartArea: ChartArea;
     @observable width = 0;
     @observable height = 0;
     @observable isMouseEntered = false;
     @observable interactionMode = InteractionMode.NONE;
+    @observable chartMargin: {top: number, bottom: number, left: number, right: number};
 
     @computed get isSelecting() {
         return this.interactionMode === InteractionMode.SELECTING;
@@ -106,25 +108,40 @@ export class ScatterPlotComponent extends React.Component<ScatterPlotComponentPr
         return this.interactionMode === InteractionMode.PANNING;
     }
 
+    @computed get chartArea(): {top: number, bottom: number, left: number, right: number} {
+        return {
+            top: this.chartMargin.top - this.chartMargin.top, 
+            bottom: this.height - this.chartMargin.bottom - this.chartMargin.top, 
+            left: this.chartMargin.left - this.chartMargin.left, 
+            right: this.width - this.chartMargin.right - this.chartMargin.left
+        }
+    }
+
     constructor(props: ScatterPlotComponentProps) {
         super(props);
         makeObservable(this);
+        this.chartMargin = {
+            top: LineGLPlotComponent.marginTop, 
+            bottom: LineGLPlotComponent.marginBottom, 
+            left: this.props.showYAxisTicks? LineGLPlotComponent.marginLeft : 5, 
+            right: LineGLPlotComponent.marginRight
+        };
     }
 
     onPlotRefUpdated = (plotRef) => {
         this.plotRef = plotRef;
     };
 
-    @action updateChart = (chartArea: ChartArea) => {
-        this.chartArea = chartArea;
-        if (this.props.updateChartArea) {
-            this.props.updateChartArea(chartArea);
-        }
-    };
-
     @action resize = (w, h) => {
         this.width = w;
         this.height = h;
+        if (this.props.updateChartArea) {
+            this.props.updateChartArea(this.chartArea);
+        }
+    };
+
+    @action updateChartMargin = (chartMargin: {top: number, bottom: number, left: number, right: number}) => {
+        this.chartMargin = chartMargin;
     };
 
     @action showMouseEnterWidget = () => {
@@ -247,8 +264,8 @@ export class ScatterPlotComponent extends React.Component<ScatterPlotComponentPr
         let innerRadius = INNERRADIUS;
         let outerRadius = OUTERRADIUS;
         if (this.props && this.props.pointRadius) {
-            innerRadius = this.props.pointRadius - 1 <= 0 ? INNERRADIUS : this.props.pointRadius - 1;
-            outerRadius = this.props.pointRadius + 2.5;  
+            innerRadius = Math.ceil(this.props.pointRadius / 3);
+            outerRadius = innerRadius + 3;  
         }
         return (
             <Group key={id} x={valueCanvasSpaceX} y={valueCanvasSpaceY}>
@@ -293,27 +310,55 @@ export class ScatterPlotComponent extends React.Component<ScatterPlotComponentPr
         return indicator;
     }
 
+    private drawInlineSVG(svgElement: SVGSVGElement, ctx: CanvasRenderingContext2D): Promise<HTMLImageElement> {
+        var svgURL = new XMLSerializer().serializeToString(svgElement);
+        var image = new Image();
+        return new Promise(resolve => {
+            image.onload = () => {
+                ctx.drawImage(image, 0, 0);
+                resolve(image);
+            }
+            image.src = 'data:image/svg+xml; charset=utf8, ' + encodeURIComponent(svgURL);
+        })
+    }
+
     exportImage = () => {
-        const scatter = this.plotRef as Scatter;
-        const canvas = scatter.chartInstance.canvas;
-        const plotName = this.props.plotName || "unknown";
-        const imageName = this.props.imageName || "unknown";
+        const canvas = this.plotRef?.getElementsByTagName("canvas")[0];
+        const svgs = this.plotRef?.getElementsByTagName("svg");
 
-        const composedCanvas = document.createElement("canvas") as HTMLCanvasElement;
-        composedCanvas.width = canvas.width;
-        composedCanvas.height = canvas.height;
+        console.log(this.plotRef?.getElementsByTagName("canvas"))
+        if (canvas && svgs) {
+        
+            const plotName = this.props.plotName || "unknown";
+            const imageName = this.props.imageName || "unknown";
 
-        const ctx = composedCanvas.getContext("2d");
-        ctx.fillStyle = "rgba(255, 255, 255, 0.0)";
-        ctx.fillRect(0, 0, composedCanvas.width, composedCanvas.height);
-        ctx.drawImage(canvas, 0, 0);
+            const composedCanvas = document.createElement("canvas") as HTMLCanvasElement;
+            composedCanvas.width = canvas.width;
+            composedCanvas.height = canvas.height;
 
-        composedCanvas.toBlob((blob) => {
-            const link = document.createElement("a") as HTMLAnchorElement;
-            link.download = `${imageName}-${plotName.replace(" ", "-")}-${this.getTimestamp()}.png`;
-            link.href = URL.createObjectURL(blob);
-            link.dispatchEvent(new MouseEvent("click"));
-        }, "image/png");
+            const ctx = composedCanvas.getContext("2d");
+
+            let bgColor = Colors.LIGHT_GRAY5;
+            if (this.props.darkMode) {
+                bgColor = Colors.DARK_GRAY3;
+            }
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, composedCanvas.width, composedCanvas.height);
+
+            // svgs 0 for grids, svgs 1 for titles in plotlyjs
+            Promise.all([this.drawInlineSVG(svgs[0], ctx), this.drawInlineSVG(svgs[1], ctx)]).then((images) =>{
+                ctx.drawImage(images[0], 0, 0);
+                ctx.drawImage(images[1], 0, 0);
+                ctx.drawImage(canvas, 0, 0);
+
+                composedCanvas.toBlob((blob) => {
+                    const link = document.createElement("a") as HTMLAnchorElement;
+                    link.download = `${imageName}-${plotName.replace(" ", "-")}-${this.getTimestamp()}.png`;
+                    link.href = URL.createObjectURL(blob);
+                    link.dispatchEvent(new MouseEvent("click"));
+                }, "image/png");
+            });
+        }
     };
 
     exportData = () => {
@@ -335,15 +380,12 @@ export class ScatterPlotComponent extends React.Component<ScatterPlotComponentPr
         const header = "# x\ty";
 
         let rows = [];
-        if (plotName === "histogram") {
-            rows = this.props.data.map(o => `${toExponential(o.x, 10)}\t${toExponential(o.y, 10)}`);
-        } else {
-            if (this.props.data && this.props.data.length) {
-                if (this.props.tickTypeX === TickType.Scientific) {
-                    rows = this.props.data.map(o => `${toExponential(o.x, 10)}\t${toExponential(o.y, 10)}`);
-                } else {
-                    rows = this.props.data.map(o => `${o.x}\t${toExponential(o.y, 10)}`);
-                }
+
+        if (this.props.data && this.props.data.length) {
+            if (this.props.tickTypeX === TickType.Scientific) {
+                rows = this.props.data.map(o => `${toExponential(o.x, 10)}\t${toExponential(o.y, 10)}`);
+            } else {
+                rows = this.props.data.map(o => `${o.x}\t${toExponential(o.y, 10)}`);
             }
         }
 
@@ -493,11 +535,11 @@ export class ScatterPlotComponent extends React.Component<ScatterPlotComponentPr
     };
 
     onStageWheel = (ev) => {
-        if (this.props.data && this.props.scrollZoom && this.props.graphZoomedXY && this.chartArea) {
+        if (this.props.data?.length && this.props.scrollZoom && this.props.graphZoomedXY && this.chartArea) {
             const wheelEvent: WheelEvent = ev.evt;
             const chartArea = this.chartArea;
             const lineHeight = 15;
-            const zoomSpeed = 0.001;
+            const zoomSpeed = 0.0015;
             if (wheelEvent.offsetX > chartArea.right || wheelEvent.offsetX < chartArea.left || wheelEvent.offsetY > chartArea.bottom || wheelEvent.offsetY < chartArea.top) {
                 return;
             }
@@ -514,7 +556,9 @@ export class ScatterPlotComponent extends React.Component<ScatterPlotComponentPr
             const zoomMaxX = this.props.xMax + rangeChangeX * (1 - fractionX);
             const zoomMinY = this.props.yMin - rangeChangeY * (1 - fractionY);
             const zoomMaxY = this.props.yMax + rangeChangeY * fractionY;
-            this.props.graphZoomedXY(zoomMinX, zoomMaxX, zoomMinY, zoomMaxY);
+            if (zoomMinX < zoomMaxX && zoomMinY < zoomMaxY) {
+                this.props.graphZoomedXY(zoomMinX, zoomMaxX, zoomMinY, zoomMaxY);
+            }
         }
     };
 
@@ -591,10 +635,10 @@ export class ScatterPlotComponent extends React.Component<ScatterPlotComponentPr
             >
                 <ReactResizeDetector handleWidth handleHeight onResize={this.resize} refreshMode={"throttle"} refreshRate={33}/>
                 {this.width > 0 && this.height > 0 &&
-                <PlotContainerComponent
+                <LineGLPlotComponent
                     {...this.props}
                     plotRefUpdated={this.onPlotRefUpdated}
-                    chartAreaUpdated={this.updateChart}
+                    updateChartMargin={this.updateChartMargin}
                     width={this.width}
                     height={this.height}
                 />
@@ -602,8 +646,9 @@ export class ScatterPlotComponent extends React.Component<ScatterPlotComponentPr
                 {this.width > 0 && this.height > 0 &&
                 <Stage
                     className={"annotation-stage"}
-                    width={this.width}
-                    height={this.height}
+                    width={this.width - this.chartMargin.right - this.chartMargin.left}
+                    height={this.height - this.chartMargin.bottom - this.chartMargin.top}
+                    style={{top: this.chartMargin.top, left: this.chartMargin.left, position: "absolute"}}
                     onMouseMove={this.onStageMouseMove}
                     onMouseDown={this.onStageMouseDown}
                     onMouseUp={this.onStageMouseUp}
