@@ -871,7 +871,8 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             plotType: this.widgetStore.plotType,
             lineWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
-            multiPlotPropsMap: new Map()
+            multiPlotPropsMap: new Map(),
+            colorable: true
         };
 
         let piLinePlotProps: LinePlotComponentProps = {
@@ -900,7 +901,8 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             lineWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
             multiPlotPropsMap: new Map(),
-            order: 1
+            order: 1,
+            colorable: true
         };
 
         let paLinePlotProps: LinePlotComponentProps = {
@@ -929,7 +931,8 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
             lineWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
             multiPlotPropsMap: new Map(),
-            order: 1
+            order: 1,
+            colorable: true
         };
 
         let quScatterPlotProps: ScatterPlotComponentProps = {

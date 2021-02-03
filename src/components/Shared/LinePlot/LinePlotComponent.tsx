@@ -10,7 +10,7 @@ import ReactResizeDetector from "react-resize-detector";
 import {Arrow, Group, Layer, Line, Rect, Stage, Text} from "react-konva";
 // import {PlotContainerComponent, TickType, MultiPlotProps} from "./PlotContainer/PlotContainerComponent";
 // import {TickType, MultiPlotProps} from "./PlotContainer/PlotContainerComponent";
-// import {ToolbarComponent} from "./Toolbar/ToolbarComponent";
+import {ToolbarComponent} from "./Toolbar/ToolbarComponent";
 import {StokesCoordinate} from "stores/widgets/StokesAnalysisWidgetStore";
 import {Point2D} from "models";
 import {clamp, toExponential} from "utilities";
@@ -18,7 +18,6 @@ import {PlotType} from "components/Shared";
 import "./LinePlotComponent.scss";
 
 import {LineGLPlotComponent, TickType, MultiPlotProps} from "./PlotContainer/GLPlotComponent"
-type Trace = { x: number[], y: number[], color?: string };
 
 export enum ZoomMode {
     NONE,
@@ -106,11 +105,9 @@ export class LinePlotComponentProps {
     setSelectedRange?: (min: number, max: number) => void;
     order?: number;
     multiPlotPropsMap?: Map<string, MultiPlotProps>;
-    traces?: Trace[];
 
     shapes?: Partial<Plotly.Shape>[];
-    draggableAnnotation?: boolean;
-    onHover?: (x: number, y:number) => void;
+    colorable?: boolean;
 }
 
 // Maximum time between double clicks
@@ -186,10 +183,10 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
 
     @computed get chartArea(): {top: number, bottom: number, left: number, right: number} {
         return {
-            top: this.chartMargin.top , 
-            bottom: this.height - this.chartMargin.bottom, 
-            left: this.chartMargin.left, 
-            right: this.width - this.chartMargin.right
+            top: this.chartMargin.top - this.chartMargin.top, 
+            bottom: this.height - this.chartMargin.bottom - this.chartMargin.top, 
+            left: this.chartMargin.left - this.chartMargin.left, 
+            right: this.width - this.chartMargin.right - this.chartMargin.left
         }
     }
 
@@ -492,11 +489,11 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
     };
 
     onStageWheel = (ev) => {
-        if ((this.props.data || this.props.multiPlotPropsMap?.size || this.props.traces?.length ) && this.props.scrollZoom && this.props.graphZoomedX && this.chartArea) {
+        if ((this.props.data?.length || this.props.multiPlotPropsMap?.size ) && this.props.scrollZoom && this.props.graphZoomedX && this.chartArea) {
             const wheelEvent: WheelEvent = ev.evt;
             const chartArea = this.chartArea;
             const lineHeight = 15;
-            const zoomSpeed = 0.001;
+            const zoomSpeed = 0.002;
             if (wheelEvent.offsetX > chartArea.right || wheelEvent.offsetX < chartArea.left) {
                 return;
             }
@@ -504,7 +501,11 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
             const currentRange = this.props.xMax - this.props.xMin;
             const fraction = (wheelEvent.offsetX - chartArea.left) / (chartArea.right - chartArea.left);
             const rangeChange = zoomSpeed * delta * currentRange;
-            this.props.graphZoomedX(this.props.xMin - rangeChange * fraction, this.props.xMax + rangeChange * (1 - fraction));
+            const xMin = this.props.xMin - rangeChange * fraction;
+            const xMax = this.props.xMax + rangeChange * (1 - fraction);
+            if (xMin < xMax) {
+                this.props.graphZoomedX(xMin, xMax);   
+            }
         }
     };
 
@@ -572,24 +573,24 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
                 ctx.drawImage(canvas, 0, 0);
 
                 // plot Mean/RMS
-                // const meanRMS = this.genMeanRMSForPngPlot();
-                // if (meanRMS?.mean) {
-                //     // plot mean
-                //     ctx.beginPath();
-                //     ctx.setLineDash([meanRMS.mean.dash]);
-                //     ctx.strokeStyle = meanRMS.mean.color;
-                //     ctx.lineWidth = 1;
-                //     ctx.moveTo(meanRMS.mean.xLeft, meanRMS.mean.y);
-                //     ctx.lineTo(meanRMS.mean.xRight, meanRMS.mean.y);
-                //     ctx.stroke();
-                // }
-                // if (meanRMS?.RMS) {
-                //     // plot RMS
-                //     ctx.fillStyle = meanRMS.RMS.color;
-                //     ctx.globalAlpha = meanRMS.RMS.opacity;
-                //     ctx.fillRect(meanRMS.RMS.xLeft, meanRMS.RMS.yTop, meanRMS.RMS.width, meanRMS.RMS.height);
-                //     ctx.globalAlpha = 1.0;
-                // }
+                const meanRMS = this.genMeanRMSForPngPlot();
+                if (meanRMS?.mean) {
+                    // plot mean
+                    ctx.beginPath();
+                    ctx.setLineDash([meanRMS.mean.dash]);
+                    ctx.strokeStyle = meanRMS.mean.color;
+                    ctx.lineWidth = 1;
+                    ctx.moveTo(meanRMS.mean.xLeft, meanRMS.mean.y);
+                    ctx.lineTo(meanRMS.mean.xRight, meanRMS.mean.y);
+                    ctx.stroke();
+                }
+                if (meanRMS?.RMS) {
+                    // plot RMS
+                    ctx.fillStyle = meanRMS.RMS.color;
+                    ctx.globalAlpha = meanRMS.RMS.opacity;
+                    ctx.fillRect(meanRMS.RMS.xLeft, meanRMS.RMS.yTop, meanRMS.RMS.width, meanRMS.RMS.height);
+                    ctx.globalAlpha = 1.0;
+                }
 
                 // plot spectral lines
                 const spectralLines = this.genSpectralLinesForPngPlot();
@@ -779,7 +780,7 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
             const arrowSize = MARKER_HITBOX_THICKNESS / 1.5;
             const arrowStart = 3;
             lineSegments = [
-                <Line listening={false} key={0} points={[0, 0, 0, chartArea.bottom]} strokeWidth={1} stroke={markerColor} opacity={markerOpacity}/>,
+                <Line listening={false} key={0} points={[0, chartArea.top, 0, chartArea.bottom]} strokeWidth={1} stroke={markerColor} opacity={markerOpacity}/>,
                 <Arrow listening={false} key={1} x={0} y={midPoint} points={[-arrowStart, 0, -arrowStart - arrowSize, 0]} pointerLength={arrowSize} pointerWidth={arrowSize} opacity={markerOpacity} fill={markerColor}/>,
                 <Arrow listening={false} key={2} x={0} y={midPoint} points={[arrowStart, 0, arrowStart + arrowSize, 0]} pointerLength={arrowSize} pointerWidth={arrowSize} opacity={markerOpacity} fill={markerColor}/>
             ];
@@ -793,7 +794,7 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
                     <Rect listening={false} key={0} x={lowerBound - valueCanvasSpace} y={chartArea.top} width={croppedThickness} height={lineHeight} fill={markerColor} opacity={markerOpacity}/>
                 )];
             } else {
-                lineSegments = [<Line listening={false} key={0} points={[0, 0, 0, chartArea.bottom]} strokeWidth={1} stroke={markerColor} opacity={markerOpacity} dash={marker.dash}/>];
+                lineSegments = [<Line listening={false} key={0} points={[0, chartArea.top, 0, chartArea.bottom]} strokeWidth={1} stroke={markerColor} opacity={markerOpacity} dash={marker.dash}/>];
             }
         }
         if (isShowingLabels && marker.label) {
@@ -853,7 +854,7 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
                     }
                     lines.push(this.genHorizontalLine(marker, isHovering, markerColor, markerOpacity, valueCanvasSpace));
                 } else {
-                    let valueCanvasSpace = this.getCanvasSpaceX(marker.value) - this.chartArea.left;
+                    let valueCanvasSpace = this.getCanvasSpaceX(marker.value);
                     if (isNaN(valueCanvasSpace)) {
                         continue;
                     }
@@ -915,39 +916,39 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
         return selectionRect;
     };
 
-    private genChartBorder = (): {x: number, y: number, width: number, height: number} => {
-        const chartArea = this.chartArea;
-        let border = undefined;
-        if (chartArea) {
-            border = {
-                x: (Math.floor(chartArea.left) - 0.5) * devicePixelRatio,
-                y: (Math.floor(chartArea.top) - 0.5) * devicePixelRatio,
-                width: Math.ceil(chartArea.right - chartArea.left + 1) * devicePixelRatio,
-                height: Math.ceil(chartArea.bottom - chartArea.top + 1) * devicePixelRatio
-            }
-        }
-        return border;
-    };
+    // private genChartBorder = (): {x: number, y: number, width: number, height: number} => {
+    //     const chartArea = this.chartArea;
+    //     let border = undefined;
+    //     if (chartArea) {
+    //         border = {
+    //             x: (Math.floor(chartArea.left) - 0.5) * devicePixelRatio,
+    //             y: (Math.floor(chartArea.top) - 0.5) * devicePixelRatio,
+    //             width: Math.ceil(chartArea.right - chartArea.left + 1) * devicePixelRatio,
+    //             height: Math.ceil(chartArea.bottom - chartArea.top + 1) * devicePixelRatio
+    //         }
+    //     }
+    //     return border;
+    // };
 
-    private genBorderRect = () => {
-        const chartArea = this.chartArea;
-        let borderRect = null;
-        if (chartArea) {
-            borderRect = (
-                // Shift by half a pixel for sharp 1px lines
-                <Rect
-                    x={Math.floor(chartArea.left) - 0.5 * devicePixelRatio}
-                    y={Math.floor(chartArea.top) - 0.5 * devicePixelRatio}
-                    width={Math.ceil(chartArea.right - chartArea.left + 1)}
-                    height={Math.ceil(chartArea.bottom - chartArea.top + 1)}
-                    listening={false}
-                    stroke={this.props.darkMode ? Colors.DARK_GRAY5 : Colors.LIGHT_GRAY1}
-                    strokeWidth={1}
-                />
-            );
-        }
-        return borderRect;
-    };
+    // private genBorderRect = () => {
+    //     const chartArea = this.chartArea;
+    //     let borderRect = null;
+    //     if (chartArea) {
+    //         borderRect = (
+    //             // Shift by half a pixel for sharp 1px lines
+    //             <Rect
+    //                 x={Math.floor(chartArea.left) - 0.5 * devicePixelRatio}
+    //                 y={Math.floor(chartArea.top) - 0.5 * devicePixelRatio}
+    //                 width={Math.ceil(chartArea.right - chartArea.left + 1)}
+    //                 height={Math.ceil(chartArea.bottom - chartArea.top + 1)}
+    //                 listening={false}
+    //                 stroke={this.props.darkMode ? Colors.DARK_GRAY5 : Colors.LIGHT_GRAY1}
+    //                 strokeWidth={1}
+    //             />
+    //         );
+    //     }
+    //     return borderRect;
+    // };
 
     private genMeanRMSForPngPlot = (): {
         mean: {color: string, dash: number, y: number, xLeft: number, xRight: number},
@@ -957,9 +958,14 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
             mean: undefined,
             RMS: undefined
         };
-        const chartArea = this.chartArea;
+        const chartArea = {
+            top: this.chartMargin.top, 
+            bottom: this.height - this.chartMargin.bottom, 
+            left: this.chartMargin.left, 
+            right: this.width - this.chartMargin.right
+        }
         this.props.markers?.forEach(marker => {
-            const canvasY = this.getCanvasSpaceY(marker.value);
+            const canvasY = this.getCanvasSpaceY(marker.value) + chartArea.top;
             if (marker?.id.match(/^marker-mean/) && !isNaN(canvasY)) {
                 meanRMS.mean = {
                     color: marker?.color,
@@ -975,7 +981,7 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
                     color: marker?.color,
                     opacity: marker?.opacity,
                     xLeft: chartArea.left * devicePixelRatio,
-                    yTop: boxInfo?.lowerBound * devicePixelRatio,
+                    yTop: (boxInfo?.lowerBound + chartArea.top) * devicePixelRatio,
                     width: (chartArea.right - chartArea.left) * devicePixelRatio,
                     height: boxInfo?.height * devicePixelRatio
                 };
@@ -1007,7 +1013,7 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
             <div
                 className={"line-plot-component"}
                 style={{cursor: this.cursorShape}}
-                // onKeyDown={this.onKeyDown}
+                onKeyDown={this.onKeyDown}
                 onMouseEnter={this.onMouseEnter}
                 onMouseMove={this.onMouseMove}
                 onMouseLeave={this.onMouseLeave}
@@ -1021,22 +1027,19 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
                     updateChartMargin={this.updateChartMargin}
                     width={this.width}
                     height={this.height}
-                    onExportData={this.exportData}
-                    onExportImage={this.exportImage}
-
                 />
                 }
-                {this.width > 0 && this.height > 0 && this.props.draggableAnnotation &&
+                {this.width > 0 && this.height > 0 &&
                 <Stage
                     className={"annotation-stage"}
                     ref={ref => this.stageRef = ref}
-                    width={this.chartArea.right - this.chartArea.left}
-                    height={this.chartArea.bottom - this.chartArea.top}
-                    style={{top: this.chartArea.top, left: this.chartArea.left, position: "absolute"}}
-                    // onMouseDown={this.onStageMouseDown}
-                    // onMouseUp={this.onStageMouseUp}
-                    // onContextMenu={this.onStageRightClick}
-                    // onMouseMove={this.onStageMouseMove}
+                    width={this.width - this.chartMargin.right - this.chartMargin.left}
+                    height={this.height - this.chartMargin.bottom - this.chartMargin.top}
+                    style={{top: this.chartMargin.top, left: this.chartMargin.left, position: "absolute"}}
+                    onMouseDown={this.onStageMouseDown}
+                    onMouseUp={this.onStageMouseUp}
+                    onContextMenu={this.onStageRightClick}
+                    onMouseMove={this.onStageMouseMove}
                     onWheel={this.onStageWheel}
                 >
                     <Layer>
@@ -1046,12 +1049,12 @@ export class LinePlotComponent extends React.Component<LinePlotComponentProps> {
                     </Layer>
                 </Stage>
                 }
-                {/* <ToolbarComponent
+                <ToolbarComponent
                     darkMode={this.props.darkMode}
                     visible={this.isMouseEntered && (this.props.data !== undefined || (this.props.multiPlotPropsMap && this.props.multiPlotPropsMap.size > 0))}
                     exportImage={this.exportImage}
                     exportData={this.exportData}
-                /> */}
+                />
             </div>
         );
     }

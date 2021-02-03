@@ -8,6 +8,7 @@ import {CARTA} from "carta-protobuf";
 import {ColormapConfigComponent} from "./ColormapConfigComponent/ColormapConfigComponent";
 import {LinePlotComponent, LinePlotComponentProps, ProfilerInfoComponent, SafeNumericInput} from "components/Shared";
 import {TaskProgressDialogComponent} from "components/Dialogs";
+import {TickType} from "components/Shared/LinePlot/PlotContainer/GLPlotComponent";
 import {RenderConfigWidgetStore} from "stores/widgets";
 import {FrameStore, RenderConfigStore, DefaultWidgetConfig, WidgetProps, HelpType, AppStore, WidgetsStore} from "stores";
 import {Point2D} from "models";
@@ -276,8 +277,7 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
             lineWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
             zeroLineWidth: 2,
-            draggableAnnotation: true,
-            shapes: []
+            tickTypeX: TickType.Automatic
         };
 
         if (frame.renderConfig.histogram && frame.renderConfig.histogram.bins && frame.renderConfig.histogram.bins.length) {
@@ -337,49 +337,23 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
             }];
 
             if (this.widgetStore.meanRmsVisible && frame.renderConfig.histogram && frame.renderConfig.histogram.stdDev > 0) {
-                // linePlotProps.markers.push({
-                //     value: frame.renderConfig.histogram.mean,
-                //     id: "marker-mean",
-                //     draggable: false,
-                //     horizontal: false,
-                //     color: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2,
-                //     dash: [5]
-                // });
-
-                // linePlotProps.markers.push({
-                //     value: frame.renderConfig.histogram.mean,
-                //     id: "marker-rms",
-                //     draggable: false,
-                //     horizontal: false,
-                //     width: frame.renderConfig.histogram.stdDev,
-                //     opacity: 0.2,
-                //     color: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2
-                // });
-
-                linePlotProps.shapes.push({
-                    type: "rect",
-                    x0: clamp(frame.renderConfig.histogram.mean - frame.renderConfig.histogram.stdDev, linePlotProps.xMin, linePlotProps.xMax),
-                    y0: linePlotProps.logY ? Math.log10(linePlotProps.yMin) : linePlotProps.yMin,
-                    x1: clamp(frame.renderConfig.histogram.mean + frame.renderConfig.histogram.stdDev, linePlotProps.xMin, linePlotProps.xMax),
-                    y1: linePlotProps.logY ? Math.log10(linePlotProps.yMax) : linePlotProps.yMax,
-                    fillcolor: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2,
-                    opacity: 0.2,
-                    line: {
-                        width: 0
-                    }
+                linePlotProps.markers.push({
+                    value: frame.renderConfig.histogram.mean,
+                    id: "marker-mean",
+                    draggable: false,
+                    horizontal: false,
+                    color: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2,
+                    dash: [5]
                 });
 
-                linePlotProps.shapes.push({
-                    type: "line",
-                    x0: frame.renderConfig.histogram.mean,
-                    y0: linePlotProps.logY ? Math.log10(linePlotProps.yMin) : linePlotProps.yMin,
-                    x1: frame.renderConfig.histogram.mean,
-                    y1: linePlotProps.logY ? Math.log10(linePlotProps.yMax) : linePlotProps.yMax,
-                    line: {
-                        color: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2,
-                        width: 1 * devicePixelRatio,
-                        dash: "dash"
-                    }
+                linePlotProps.markers.push({
+                    value: frame.renderConfig.histogram.mean,
+                    id: "marker-rms",
+                    draggable: false,
+                    horizontal: false,
+                    width: frame.renderConfig.histogram.stdDev,
+                    opacity: 0.2,
+                    color: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2
                 });
             }
         }

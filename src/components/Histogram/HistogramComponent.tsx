@@ -7,7 +7,7 @@ import {NonIdealState, Colors} from "@blueprintjs/core";
 import {CARTA} from "carta-protobuf";
 import {HistogramToolbarComponent} from "./HistogramToolbarComponent/HistogramToolbarComponent";
 import {LinePlotComponent, LinePlotComponentProps} from "components/Shared";
-import {TickType} from "../Shared/LinePlot/PlotContainer/PlotContainerComponent";
+import {TickType} from "components/Shared/LinePlot/PlotContainer/GLPlotComponent";
 import {HistogramWidgetStore} from "stores/widgets";
 import {FrameStore, WidgetProps, HelpType, WidgetsStore, AppStore, DefaultWidgetConfig} from "stores";
 import {clamp} from "utilities";
@@ -218,7 +218,8 @@ export class HistogramComponent extends React.Component<WidgetProps> {
             plotName: plotName,
             logY: this.widgetStore.logScaleY,
             plotType: this.widgetStore.plotType,
-            tickTypeY: TickType.Scientific,
+            tickTypeY: TickType.Automatic,
+            tickTypeX: TickType.Automatic,
             graphZoomedX: this.widgetStore.setXBounds,
             graphZoomedY: this.widgetStore.setYBounds,
             graphZoomedXY: this.widgetStore.setXYBounds,
