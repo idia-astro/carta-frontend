@@ -46,41 +46,24 @@ export class LineGLPlotComponentProps {
     graphZoomReset?: () => void;
     updateChartMargin: (chartMargin: {top: number, bottom: number, left: number, right: number}) => void
     shapes?: Partial<Plotly.Shape>[];
-
     showTopAxis?: boolean;
     topAxisTickFormatter?: (values: number[]) => string[];
     zeroLineWidth?: number;
     plotRefUpdated?: (plotRef: any) => void;
-
-    // draggableAnnotation?: boolean;
-    // onExportData:  () => void;
-    // onExportImage: () => void;
-    // onHover?: (x: number, y:number) => void;
-    // mouseEntered?: (value: boolean) => void;
     colorable?: boolean;
-
-    //?
     logY?: boolean;
+    showXAxisLabel: boolean;
+    showYAxisLabel: boolean;
+    showXAxisTicks: boolean;
+    showYAxisTicks: boolean;
+    showLegend?: boolean;
     // scatter
     opacity?: number;
     scatterPointColor?: Array<string>;
     pointRadius?: number;
     multiColorSingleLineColors?: Array<string>;
     multiColorMultiLinesColors?: Map<string, Array<string>>;
-    
-    showXAxisLabel: boolean;
-    showYAxisLabel: boolean;
-    showXAxisTicks: boolean;
-    showYAxisTicks: boolean;
-
-    // xZeroLineColor?: string;
-    // yZeroLineColor?: string;
-    showLegend?: boolean;
-    // xTickMarkLength?: number;
     // isGroupSubPlot?: boolean;
-
-    //?
-    order?: number;
 }
 
 export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProps> {
@@ -129,19 +112,9 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             return true;
         } else if (props.showXAxisLabel !== nextProps.showXAxisLabel) {
             return true;
-        } 
-        // else if (props.xZeroLineColor !== nextProps.xZeroLineColor) {
-        //     return true;
-        // } else if (props.yZeroLineColor !== nextProps.yZeroLineColor) {
-        //     return true;
-        // } 
-        else if (props.showLegend !== nextProps.showLegend) {
+        } else if (props.showLegend !== nextProps.showLegend) {
             return true;
-        } 
-        // else if (props.xTickMarkLength !== nextProps.xTickMarkLength) {
-        //     return true;
-        // } 
-        else if (props.plotType !== nextProps.plotType) {
+        } else if (props.plotType !== nextProps.plotType) {
             return true;
         } else if (props.scatterPointColor !== nextProps.scatterPointColor) {
             return true;
@@ -402,7 +375,6 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                     layout={layout}
                     config={config}
                     onUpdate={this.onUpdate}
-                    // onRelayout={this.onRelayout}
                     style={{transform: `scale(${scale})`, transformOrigin: "top left"}}
                 />
             </div>
@@ -430,7 +402,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         showlegend: boolean = false,
         colorable: boolean,
         opacity: number,
-        data?: { x: number, y: number }[] | { x: number, y: number, z?: number }[],
+        data: { x: number, y: number }[] | { x: number, y: number, z?: number }[],
         scatterPointColor?: Array<string>, 
         traceName?: string 
     ): Partial<Plotly.PlotData> {
@@ -474,7 +446,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 break;
         }
 
-        if (data?.length) {
+        if (data.length) {
             const dataSize = data.length;
             trace.x = Array(dataSize);
             trace.y = Array(dataSize);
@@ -482,7 +454,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 const point = data[i];
                 trace.x[i] = point.x;
                 trace.y[i] = point.y; 
-            }   
+            } 
         }
         return trace;
     }
@@ -501,34 +473,6 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         }
         this.props.plotRefUpdated(graphDiv);
     }
-
-    // private onRelayout = (event: Readonly<Plotly.PlotRelayoutEvent>) => {
-    //     const xMin = event["xaxis.range[0]"];
-    //     const xMax = event["xaxis.range[1]"];
-    //     const yMin = event["yaxis.range[0]"];
-    //     const yMax = event["yaxis.range[1]"];
-
-    //     console.log(event)
-
-    //     if (xMin && xMax) {
-    //         this.props.graphZoomedX(xMin, xMax);   
-    //     } else {
-    //         this.props.graphZoomedX(undefined, undefined);
-    //     }  
-        
-    //     if (yMin && yMin) {
-    //         if (this.props.logY) {
-    //             this.props.graphZoomedY(Math.pow(10, yMin), Math.pow(10, yMax));
-    //         } else {
-    //             this.props.graphZoomedY(yMin, yMax);
-    //         }
-    //     } else {
-    //         this.props.graphZoomedY(undefined, undefined);
-    //     }
-    //     if (event.xaxis?.autorange || event.yaxis?.autorange) {
-    //         this.props.graphZoomReset();
-    //     }
-    // }
 
     private LineGL() {
         let scatterDatasets: Plotly.Data[] = [];

@@ -53,10 +53,7 @@ export class ScatterPlotComponentProps {
     colorRangeEnd?: number;
     showXAxisTicks: boolean;
     showYAxisTicks: boolean;
-    xZeroLineColor?: string;
-    yZeroLineColor?: string;
     showLegend?: boolean;
-    xTickMarkLength?: number;
     plotType?: PlotType;
     scatterPointColor?: Array<string>;
     isGroupSubPlot?: boolean;

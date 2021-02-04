@@ -75,7 +75,6 @@ export class LinePlotComponentProps {
     tickTypeY?: TickType;
     markers?: LineMarker[];
     showTopAxis?: boolean;
-    // topAxisTickFormatter?: (value: number, index: number, values: number[]) => string | number;
     topAxisTickFormatter?: (values: number[]) => string[];
     graphClicked?: (x: number) => void;
     graphRightClicked?: (x: number) => void;
@@ -89,7 +88,6 @@ export class LinePlotComponentProps {
     showXAxisLabel: boolean;
     showYAxisTicks: boolean;
     showYAxisLabel: boolean;
-    yZeroLineColor?: string;
     showLegend?: boolean;
     xTickMarkLength?: number;
     plotType?: PlotType;
@@ -105,7 +103,6 @@ export class LinePlotComponentProps {
     setSelectedRange?: (min: number, max: number) => void;
     order?: number;
     multiPlotPropsMap?: Map<string, MultiPlotProps>;
-
     shapes?: Partial<Plotly.Shape>[];
     colorable?: boolean;
 }

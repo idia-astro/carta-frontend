@@ -37,8 +37,6 @@ export class PlotContainerProps {
     showXAxisLabel?: boolean;
     showYAxisTicks?: boolean;
     showYAxisLabel?: boolean;
-    xZeroLineColor?: string;
-    yZeroLineColor?: string;
     showLegend?: boolean;
     xTickMarkLength?: number;
     plotType?: PlotType;
@@ -275,10 +273,6 @@ export class PlotContainerComponent extends React.Component<PlotContainerProps> 
             return true;
         } else if (props.showXAxisLabel !== nextProps.showXAxisLabel) {
             return true;
-        } else if (props.xZeroLineColor !== nextProps.xZeroLineColor) {
-            return true;
-        } else if (props.yZeroLineColor !== nextProps.yZeroLineColor) {
-            return true;
         } else if (props.showLegend !== nextProps.showLegend) {
             return true;
         } else if (props.xTickMarkLength !== nextProps.xTickMarkLength) {
@@ -364,7 +358,7 @@ export class PlotContainerComponent extends React.Component<PlotContainerProps> 
                     gridLines: {
                         drawBorder: false,
                         color: gridColor,
-                        zeroLineColor: this.props.xZeroLineColor ? this.props.xZeroLineColor : gridColor,
+                        zeroLineColor: gridColor,
                         zeroLineWidth: this.props.zeroLineWidth ? this.props.zeroLineWidth : 1,
                         tickMarkLength: this.props.xTickMarkLength === 0 ? this.props.xTickMarkLength : 10
                     },
@@ -402,7 +396,7 @@ export class PlotContainerComponent extends React.Component<PlotContainerProps> 
                     gridLines: {
                         drawBorder: false,
                         color: gridColor,
-                        zeroLineColor: this.props.yZeroLineColor ? this.props.yZeroLineColor : gridColor,
+                        zeroLineColor: gridColor,
                         zeroLineWidth: this.props.zeroLineWidth ? this.props.zeroLineWidth : 1,
                     },
                 }]
