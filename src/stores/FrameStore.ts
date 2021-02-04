@@ -50,8 +50,7 @@ export enum RasterRenderType {
 export const WCS_PRECISION = 10;
 
 export class FrameStore {
-    public readonly astFrameSet: number;
-    public readonly astMapping: number;
+    private readonly astFrameSet: number;
     private readonly spectralFrame: number;
     public spectralCoordsSupported: Map<string, { type: SpectralType, unit: SpectralUnit }>;
     public spectralSystemsSupported: Array<SpectralSystem>;
@@ -694,7 +693,6 @@ export class FrameStore {
         const preferenceStore = PreferenceStore.Instance;
 
         this.astFrameSet = null;
-        this.astMapping = null;
         this.spectralFrame = null;
         this.spectralType = null;
         this.spectralUnit = null;
@@ -756,14 +754,11 @@ export class FrameStore {
         this.animationChannelRange = [0, frameInfo.fileInfoExtended.depth - 1];
 
         this.initSkyWCS();
-        if (frameInfo.fileInfoExtended.depth > 1) {
-            this.initFullWCS();
-        }
-
         this.astFrameSet = this.initFrame();
         if (this.astFrameSet) {
-            this.astMapping = AST.getMapping(this.astFrameSet);
-            AST.dump(this.astMapping);
+            if (frameInfo.fileInfoExtended.depth > 1) {
+                this.fullWcsInfo = AST.get3DMapping(this.astFrameSet);
+            }
             this.spectralFrame = AST.getSpectralFrame(this.astFrameSet);
         }
         this.initSupportedSpectralConversion();
@@ -872,56 +867,6 @@ export class FrameStore {
             this.validWcs = true;
             this.overlayStore.setDefaultsFromAST(this);
             console.log("Initialised WCS info from frame");
-        }
-    };
-
-    @action private initFullWCS = () => {
-        let headerString = "";
-
-        for (let entry of this.frameInfo.fileInfoExtended.headerEntries) {
-            // Skip empty header entries
-            if (!entry.value.length) {
-                continue;
-            }
-
-            // Skip higher dimensions
-            if (entry.name.match(/(CTYPE|CDELT|CRPIX|CRVAL|CUNIT|NAXIS|CROTA)[4-9]/)) {
-                continue;
-            }
-
-            let value = trimFitsComment(entry.value);
-            if (entry.name.toUpperCase() === "NAXIS") {
-                value = "3";
-            }
-
-            if (entry.name.toUpperCase() === "WCSAXES") {
-                value = "3";
-            }
-
-            if (entry.entryType === CARTA.EntryType.STRING) {
-                value = `'${value}'`;
-            } else {
-                value = FrameStore.ShiftASTCoords(entry, value);
-            }
-
-            let name = entry.name;
-            while (name.length < 8) {
-                name += " ";
-            }
-
-            let entryString = `${name}=  ${value}`;
-            while (entryString.length < 80) {
-                entryString += " ";
-            }
-            headerString += entryString;
-        }
-        const initResult = AST.initFrame(headerString);
-        if (!initResult) {
-            this.logStore.addWarning(`Problem processing WCS info in file ${this.filename}`, ["ast"]);
-            this.fullWcsInfo = null;
-        } else {
-            this.fullWcsInfo = initResult;
-            console.log("Initialised 3D WCS info from frame");
         }
     };
 

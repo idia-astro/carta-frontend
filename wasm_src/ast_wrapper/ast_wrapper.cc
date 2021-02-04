@@ -65,7 +65,7 @@ EMSCRIPTEN_KEEPALIVE AstFrameSet* initFrame(const char* header)
     return frameSet;
 }
 
-EMSCRIPTEN_KEEPALIVE AstMapping* getMapping(AstFrameSet* frameSet, const int dimension)
+EMSCRIPTEN_KEEPALIVE AstMapping* get3DMapping(AstFrameSet* frameSet)
 {
     if (!frameSet || !astIsAFrameSet(frameSet))
     {
@@ -73,18 +73,9 @@ EMSCRIPTEN_KEEPALIVE AstMapping* getMapping(AstFrameSet* frameSet, const int dim
         return nullptr;
     }
 
-    if (dimension <= 0) // TODO: check dimension > 0 && < frameset dimension
-    {
-        cout << "Invalid dimension." << endl;
-        return nullptr;
-    }
-
-    int inaxes[2] = {1, 2, 3};
+    int inaxes[3] = {1, 2, 3};
     int outaxes[3];
     AstMapping *map;
-    // get 2D map
-    // astMapSplit(frameSet, 2, inaxes, outaxes, &map);
-    // get 3D map
     astMapSplit(frameSet, 3, inaxes, outaxes, &map); // map is a deep copy
 
     if (!map)
