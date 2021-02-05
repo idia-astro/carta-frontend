@@ -71,6 +71,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
     public static marginBottom: number = 40;
     public static marginLeft: number = 70;
     public static marginRight: number = 10;
+    private graphRef: Readonly<HTMLElement>;
     private chartMargin: { top: number, bottom: number, left: number, right: number };
 
     shouldComponentUpdate(nextProps: LineGLPlotComponentProps) {
@@ -270,10 +271,6 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             layout.shapes = this.props.shapes;
         }
 
-        if (this.props.logY) {
-            layout.yaxis.type = "log";   
-        }
-
         if (this.props.showXAxisLabel === true) {
             let titleX: string | Partial<Plotly.DataTitle> = {
                 text: this.props.xLabel,
@@ -305,7 +302,9 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                    yMin, 
                    yMax
                 ];
-                layout.yaxis.nticks = Math.ceil(this.props.height / 100);
+                let {logTickVals, logTickText} = this.tickValsLogY(yMin, yMax);
+                layout.yaxis.tickvals = logTickVals;
+                layout.yaxis.ticktext = logTickText;
             } else {
                 layout.yaxis.range = [this.props.yMin, this.props.yMax];
             }
@@ -389,7 +388,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 return "f";
             default:
                 // If e < –6 or e ≥ p
-                return ".2g";
+                return ".6g";
         }
     }
 
@@ -403,6 +402,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         colorable: boolean,
         opacity: number,
         data: { x: number, y: number }[] | { x: number, y: number, z?: number }[],
+        logY: boolean,
         scatterPointColor?: Array<string>, 
         traceName?: string 
     ): Partial<Plotly.PlotData> {
@@ -453,7 +453,15 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             for (let i = 0; i < data.length; i++) {
                 const point = data[i];
                 trace.x[i] = point.x;
-                trace.y[i] = point.y; 
+                if (logY) {
+                    if (point.y === 0) {
+                        trace.y[i] = Math.log10(0.5);
+                    } else {
+                        trace.y[i] = Math.log10(point.y);
+                    }
+                } else {
+                    trace.y[i] = point.y;
+                }
             } 
         }
         return trace;
@@ -471,7 +479,22 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             this.chartMargin = margin;
             this.props.updateChartMargin(margin);
         }
+        this.graphRef = graphDiv;
         this.props.plotRefUpdated(graphDiv);
+
+        // const gl = graphDiv.getElementsByTagName("canvas")[0];
+        // gl.addEventListener("webglcontextlost", (event) => {
+        //     event.preventDefault();
+        //     // console.log("innnns", event, figure)
+        //     const trace: Partial<Plotly.PlotData> = {
+        //         type: "scatter"
+        //     };
+
+        //     figure.layout.xaxis.range = [this.props.xMin, this.props.xMax];
+        //     figure.layout.yaxis.range = [this.props.yMin, this.props.yMax];
+        //     Plotly.restyle(graphDiv, trace);
+        // }, false);
+        // console.log(figure, graphDiv)
     }
 
     private LineGL() {
@@ -492,6 +515,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                     this.props.colorable,
                     this.props.opacity,
                     this.props.data,
+                    this.props.logY,
                     this.props.scatterPointColor
                 )   
             );   
@@ -514,6 +538,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                         this.props.colorable,
                         this.props.opacity,
                         line.data,
+                        this.props.logY,
                         [],
                         key
                     )
@@ -530,17 +555,16 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         return {ticks, topAxisTick};
     }
 
-    private tickValsLogY() {
+    private tickValsLogY(yMin: number, yMax: number) {
+        const min = yMin < 1 ? 1 : yMin;
         const nticks = Math.floor(this.props.height / 100);
-        const logTickVals = D3.scaleLog().domain([this.props.yMin, this.props.yMax]).range([0, this.props.height]).ticks(nticks);
-        const f = D3.format(".2e");
+        let logTickVals = D3.scaleLog().domain([min, yMax]).ticks(nticks);
+        const f = D3.format(LineGLPlotComponent.GetTickType(this.props.tickTypeY));
+        logTickVals.unshift(0);
         let logTickText = [];
         logTickVals.forEach(tick => {
-            logTickText.push(f(tick));
+            logTickText.push(f(Math.pow(10,tick)));
         });
-        console.log(nticks)
-        console.log(logTickVals)
-        console.log(logTickText);
         return {logTickVals, logTickText};
     }
 }

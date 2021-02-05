@@ -1,5 +1,6 @@
 import * as React from "react";
 import * as _ from "lodash";
+import * as d3 from "d3";
 import {action, autorun, computed, makeObservable, observable} from "mobx";
 import {observer} from "mobx-react";
 import {Colors, NonIdealState} from "@blueprintjs/core";
@@ -7,8 +8,9 @@ import ReactResizeDetector from "react-resize-detector";
 import {ChartArea} from "chart.js";
 import {CARTA} from "carta-protobuf";
 import {LinePlotComponent, LinePlotComponentProps, ProfilerInfoComponent, ScatterPlotComponent, ScatterPlotComponentProps, VERTICAL_RANGE_PADDING, PlotType, SmoothingType} from "components/Shared";
+import {ToolbarComponent} from "components/Shared/LinePlot/Toolbar/ToolbarComponent";
 import {StokesAnalysisToolbarComponent} from "./StokesAnalysisToolbarComponent/StokesAnalysisToolbarComponent";
-import {TickType, MultiPlotProps} from "../Shared/LinePlot/PlotContainer/GLPlotComponent";
+import {TickType, MultiPlotProps} from "components/Shared/LinePlot/PlotContainer/GLPlotComponent";
 import {SpectralProfileStore, DefaultWidgetConfig, WidgetProps, HelpType, AnimatorStore, WidgetsStore, AppStore} from "stores";
 import {StokesAnalysisWidgetStore, StokesCoordinate} from "stores/widgets";
 import {Point2D} from "models";
@@ -30,6 +32,8 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
         horizontal: 2,
     };
     private multicolorLineColorOutRange = "hsla(0, 0%, 50%, 0.5)";
+    private showLinePlotToolbar: boolean = false;
+    private lineChartRef: Readonly<HTMLElement>;
 
     public static get WIDGET_CONFIG(): DefaultWidgetConfig {
         return {
@@ -836,6 +840,24 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
         }
         return profilerInfo;
     };
+
+    private exportImage = () => {
+        const canvas = d3.select(this.lineChartRef);
+        // const svgs = document.getElementsByTagName("svg");
+        console.log(this.lineChartRef, canvas)
+    }
+
+    private exportData = () => {
+        
+    }
+
+    private onMouseEnter = () => {
+        this.showLinePlotToolbar = true;
+    };
+
+    private onMouseLeave = () => {
+        this.showLinePlotToolbar = false;
+    };
     
     render() {
         const appStore = AppStore.Instance;
@@ -1258,7 +1280,7 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
                     <div className="profile-plot-toolbar">
                         <StokesAnalysisToolbarComponent widgetStore={this.widgetStore} id={this.props.id}/>
                     </div>
-                    <div className="profile-plot-qup">
+                    <div className="profile-plot-qup" onMouseEnter={this.onMouseEnter} onMouseLeave={this.onMouseLeave} ref={ref => this.lineChartRef = ref}>
                         <div className="profile-plot-qu">
                             <LinePlotComponent {...quLinePlotProps}/>
                         </div>
@@ -1267,6 +1289,12 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
                         </div>
                         <div className="profile-plot-pa">
                             <LinePlotComponent {...paLinePlotProps}/>
+                            <ToolbarComponent
+                                darkMode={appStore.darkTheme}
+                                visible={this.showLinePlotToolbar}
+                                exportImage={this.exportImage}
+                                exportData={this.exportData}
+                            />
                         </div>
                     </div>
                     <div className="profile-plot-qvsu">
