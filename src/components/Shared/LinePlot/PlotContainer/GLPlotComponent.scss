@@ -3,6 +3,8 @@
 }
 
 .line-gl-plot-scale {
+    width: 100%;
+    height: 100%;
     .js-plotly-plot .plotly {
         .modebar-container {
             position: absolute;
@@ -14,35 +16,13 @@
                 transform: scale(2);
             }
         }
-        .main-svg {
-            .zoomlayer {
-                .zoombox {
-                    fill: rgba(16, 22, 26, 0.4) !important;
-                    stroke-width: 0px;
-                }
-                .zoombox-corners {
-                    fill: rgba(95, 115, 130, 1) !important;
-                    stroke: rgba(95, 115, 130, 1) !important;
-                    stroke-width: 2px !important;
-                    opacity: 1;
-                }
-            }
-        }
-        [data-title]::before {
-            top: -30px;
-            right: 50%;
-            border-color: rgb(105, 115, 138) transparent transparent transparent;
-            margin-top: 28px;
-        }
-
-        [data-title]::after {
-            top: -30px;
-        }
     }
 
 }
 
 .line-gl-plot {
+    width: 100%;
+    height: 100%;
     .js-plotly-plot .plotly { 
         .modebar-container {
             position: absolute;
@@ -50,17 +30,6 @@
             right: 2px !important;
             top: unset !important;
             width: 100%;
-        }
-        
-        [data-title]::before {
-            top: -30px;
-            right: 50%;
-            border-color: rgb(105, 115, 138) transparent transparent transparent;
-            margin-top: 28px;
-        }
-
-        [data-title]::after {
-            top: -30px;
         }
     }
 }

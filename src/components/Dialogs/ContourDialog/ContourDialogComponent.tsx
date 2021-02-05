@@ -320,7 +320,8 @@ export class ContourDialogComponent extends React.Component {
             scrollZoom: true,
             lineWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
-            zeroLineWidth: 2
+            zeroLineWidth: 2,
+            isDialog: true
         };
 
         const currentPlotData = this.plotData;

@@ -105,6 +105,7 @@ export class LinePlotComponentProps {
     multiPlotPropsMap?: Map<string, MultiPlotProps>;
     shapes?: Partial<Plotly.Shape>[];
     colorable?: boolean;
+    isDialog?: boolean;
 }
 
 // Maximum time between double clicks

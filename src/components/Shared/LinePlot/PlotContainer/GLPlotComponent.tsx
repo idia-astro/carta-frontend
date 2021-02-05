@@ -64,6 +64,7 @@ export class LineGLPlotComponentProps {
     multiColorSingleLineColors?: Array<string>;
     multiColorMultiLinesColors?: Map<string, Array<string>>;
     // isGroupSubPlot?: boolean;
+    isDialog?: boolean;
 }
 
 export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProps> {
@@ -171,7 +172,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
     public render() {
         const scale = 1 / devicePixelRatio;
         const fontFamily = "'Helvetica Neue', 'Helvetica', 'Arial', sans-serif";
-        let themeColor = Colors.LIGHT_GRAY5;
+        let themeColor = this.props.isDialog ? Colors.LIGHT_GRAY4 : Colors.LIGHT_GRAY5;
         let lableColor = Colors.GRAY1;
         let gridColor = Colors.LIGHT_GRAY1;
         let markerColor = Colors.GRAY2;
@@ -184,6 +185,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             themeColor = Colors.DARK_GRAY3;
             markerColor = Colors.GRAY4;
         }
+        console.log(themeColor)
 
         let layout: Partial<Plotly.Layout> = {
             width: this.props.width * devicePixelRatio, 
