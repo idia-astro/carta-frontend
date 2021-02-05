@@ -127,7 +127,7 @@ export class SpatialProfileWidgetStore {
         this.markerTextVisible = false;
         this.wcsAxisVisible = true;
         this.primaryLineColor = { colorHex: Colors.BLUE2, fixed: false };
-        this.linePlotPointSize = 5;
+        this.linePlotPointSize = LineSettings.DEFAULT_POINT_SIZE;
         this.lineWidth = 1;
         this.linePlotInitXYBoundaries = { minXVal: 0, maxXVal: 0, minYVal: 0, maxYVal: 0 };
         this.smoothingStore = new ProfileSmoothingStore();

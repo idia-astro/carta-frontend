@@ -49,10 +49,11 @@ export class LinePlotSettingsPanelComponentProps {
 export enum LineSettings {
     MIN_WIDTH = 0.5,
     MAX_WIDTH = 10,
-    MIN_POINT_SIZE = 0.5,
+    MIN_POINT_SIZE = 1,
     MAX_POINT_SIZE = 10,
-    POINT_SIZE_STEP_SIZE = 0.5,
-    LINE_WIDTH_STEP_SIZE = 0.5
+    POINT_SIZE_STEP_SIZE = 1,
+    LINE_WIDTH_STEP_SIZE = 0.5,
+    DEFAULT_POINT_SIZE = 3
 }
 
 @observer

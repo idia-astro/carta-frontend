@@ -309,7 +309,7 @@ export class SpectralProfileWidgetStore extends RegionWidgetStore {
         this.meanRmsVisible = false;
         this.markerTextVisible = false;
         this.primaryLineColor = { colorHex: Colors.BLUE2, fixed: false };
-        this.linePlotPointSize = 1.5;
+        this.linePlotPointSize = LineSettings.DEFAULT_POINT_SIZE;
         this.lineWidth = 1;
         this.linePlotInitXYBoundaries = { minXVal: 0, maxXVal: 0, minYVal: 0, maxYVal: 0 };
 

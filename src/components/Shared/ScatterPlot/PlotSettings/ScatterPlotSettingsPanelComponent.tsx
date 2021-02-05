@@ -16,11 +16,11 @@ export class ScatterPlotSettingsPanelComponentProps {
 }
 
 export enum ScatterSettings {
-     MIN_POINT_SIZE = 0.5,
+     MIN_POINT_SIZE = 1,
      MAX_POINT_SIZE = 10,
      MIN_TRANSPARENCY = 0.1,
      MAX_TRANSPARENCY = 1,
-     POINT_SIZE_STEP_SIZE = 0.5,
+     POINT_SIZE_STEP_SIZE = 1,
      TRANSPARENCY_STEP_SIZE = 0.1
 }
 

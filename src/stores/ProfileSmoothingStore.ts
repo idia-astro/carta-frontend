@@ -27,7 +27,7 @@ export class ProfileSmoothingStore {
         this.lineColor = { colorHex: Colors.ROSE3, fixed: false };
         this.lineType = PlotType.STEPS;
         this.lineWidth = 1;
-        this.pointRadius = 1;
+        this.pointRadius = LineSettings.DEFAULT_POINT_SIZE;
         this.isOverlayOn = false;
         this.boxcarSize = 2;
         this.gaussianSigma = 1.0;

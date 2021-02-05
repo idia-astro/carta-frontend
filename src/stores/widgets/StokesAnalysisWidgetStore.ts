@@ -27,7 +27,6 @@ const DEFAULTS = {
         primaryLineColor: { colorHex: Colors.BLUE2, fixed: false },
         secondaryLineColor: { colorHex: Colors.ORANGE2, fixed: false },
         lineWidth: 1,
-        linePlotPointSize: 1.5,
         scatterPlotPointSize: 5,
         equalAxes: true,
         colorMap: "jet",
@@ -233,7 +232,7 @@ export class StokesAnalysisWidgetStore extends RegionWidgetStore {
         this.primaryLineColor = DEFAULTS.primaryLineColor;
         this.secondaryLineColor = DEFAULTS.secondaryLineColor;
         this.lineWidth = DEFAULTS.lineWidth;
-        this.linePlotPointSize = DEFAULTS.linePlotPointSize;
+        this.linePlotPointSize = LineSettings.DEFAULT_POINT_SIZE;
         this.scatterPlotPointSize = DEFAULTS.scatterPlotPointSize;
         this.equalAxes = DEFAULTS.equalAxes;
         this.pointTransparency = DEFAULTS.pointTransparency;
