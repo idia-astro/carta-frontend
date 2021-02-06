@@ -185,7 +185,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
             themeColor = Colors.DARK_GRAY3;
             markerColor = Colors.GRAY4;
         }
-        console.log(themeColor)
+        // console.log(this.props.lineColor)
 
         let layout: Partial<Plotly.Layout> = {
             width: this.props.width * devicePixelRatio, 
@@ -398,7 +398,8 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         traceType: Plotly.PlotType,
         plotType: PlotType, 
         pointRadius: number,
-        lineColor: string | string[],
+        lineColor: string,
+        colorArray: string[],
         lineWidth: number,
         showlegend: boolean = false,
         colorable: boolean,
@@ -412,12 +413,13 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         trace.type = traceType;
         trace.hoverinfo = "none";
         let marker: Partial<Plotly.PlotMarker> = {
-            color: lineColor,
+            color: colorArray.length > 0 ? colorArray : lineColor,
             opacity: opacity
         };
 
         let line: Partial<Plotly.ScatterLine> = {
-            width: lineWidth
+            width: lineWidth,
+            color: colorArray.length > 0 ? Colors.GRAY2 : lineColor,
         };
         trace.marker = marker;
         trace.line = line;
@@ -433,7 +435,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                 trace.marker.opacity = 0;
                 if (colorable) {
                     trace.marker.opacity = 1;
-                    trace.marker.size = 10;
+                    trace.marker.size = pointRadius;
                 }
                 break;
             case PlotType.POINTS:
@@ -501,9 +503,10 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
 
     private LineGL() {
         let scatterDatasets: Plotly.Data[] = [];
-        let color: string | string[] = this.props.lineColor;
+        let color = this.props.lineColor;
+        let colorArray = [];
         if (this.props.multiColorSingleLineColors?.length) {
-            color = this.props.multiColorSingleLineColors;
+            colorArray = this.props.multiColorSingleLineColors;
         }
         if (this.props.data?.length) {
             scatterDatasets.push(
@@ -512,6 +515,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                     this.props.plotType, 
                     this.props.pointRadius * devicePixelRatio,
                     color,
+                    colorArray,
                     this.props.lineWidth * devicePixelRatio,
                     this.props.showLegend,
                     this.props.colorable,
@@ -525,9 +529,10 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
         
         if (this.props.multiPlotPropsMap?.size) {
             this.props.multiPlotPropsMap.forEach((line, key) => {
-                let color: string | string[] = line.borderColor;
+                let color: string = line.borderColor;
+                let colorArray = [];
                 if (this.props.multiColorMultiLinesColors?.size) {
-                    color = this.props.multiColorMultiLinesColors.get(key);
+                    colorArray = this.props.multiColorMultiLinesColors.get(key);
                 }
                 scatterDatasets.push(                
                     LineGLPlotComponent.updateLineData(
@@ -535,6 +540,7 @@ export class LineGLPlotComponent extends React.Component<LineGLPlotComponentProp
                         line.type, 
                         line.pointRadius * devicePixelRatio,
                         color,
+                        colorArray,
                         line.lineWidth * devicePixelRatio,
                         this.props.showLegend,
                         this.props.colorable,

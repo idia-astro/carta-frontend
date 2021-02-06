@@ -1076,7 +1076,7 @@ export class StokesAnalysisComponent extends React.Component<WidgetProps> {
                     paLinePlotProps.multiPlotPropsMap.set("smoothed", smoothedPaPlotProps);
                 }
 
-                const loadData = (currentPlotData.qProgress === 1 && currentPlotData.uProgress === 1 && currentPlotData.iProgress === 1);
+                const loadData = (currentPlotData.qProgress === 1 && currentPlotData.uProgress === 1 && currentPlotData.iProgress === 1 && this.widgetStore.scatterOutRangePointsZIndex.length > 0);
                 let qlinePlotWithInteractionColor;
                 let ulinePlotWithInteractionColor;
                 if (smoothingStore.type !== SmoothingType.NONE && !smoothingStore.isOverlayOn) {
