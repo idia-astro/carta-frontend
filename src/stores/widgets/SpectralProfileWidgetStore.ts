@@ -1,4 +1,4 @@
-import { action, autorun, computed, observable, makeObservable } from "mobx";
+import {action, autorun, computed, observable, makeObservable, override} from "mobx";
 import {Colors, NumberRange} from "@blueprintjs/core";
 import {CARTA} from "carta-protobuf";
 import {PlotType, LineSettings} from "components/Shared";
@@ -62,6 +62,8 @@ export class SpectralProfileWidgetStore extends RegionWidgetStore {
                 return "Min";
             case CARTA.StatsType.Max:
                 return "Max";
+            case CARTA.StatsType.Extrema:
+                return "Extrema";
             case CARTA.StatsType.RMS:
                 return "RMS";
             case CARTA.StatsType.SumSq:
@@ -75,10 +77,10 @@ export class SpectralProfileWidgetStore extends RegionWidgetStore {
 
     private static ValidStatsTypes = [
         CARTA.StatsType.Sum, CARTA.StatsType.FluxDensity, CARTA.StatsType.Mean, CARTA.StatsType.Sigma,
-        CARTA.StatsType.Min, CARTA.StatsType.Max, CARTA.StatsType.RMS, CARTA.StatsType.SumSq
+        CARTA.StatsType.Min, CARTA.StatsType.Max, CARTA.StatsType.Extrema, CARTA.StatsType.RMS, CARTA.StatsType.SumSq
     ];
 
-    @action setRegionId = (fileId: number, regionId: number) => {
+    @override setRegionId = (fileId: number, regionId: number) => {
         this.regionIdMap.set(fileId, regionId);
         this.clearXYBounds();
     };
