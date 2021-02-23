@@ -148,6 +148,7 @@ export class SpectralLineQueryWidgetStore extends RegionWidgetStore {
     @observable numDataRows: number;
     @observable selectedSpectralProfilerID: string;
     @observable controlHeader: Map<string, ControlHeader>;
+    @observable sortingInfo: {columnName: string, sortingType: CARTA.SortingType};
 
     // raw copy of the shifted frequency column, does not apply shifting factor
     private shiftedFreqColumnRawData: Array<number>;
@@ -256,6 +257,7 @@ export class SpectralLineQueryWidgetStore extends RegionWidgetStore {
         this.numDataRows = 0;
         this.controlHeader = new Map<string, ControlHeader>();
         this.isDataFiltered = false;
+        this.sortingInfo = {columnName: null, sortingType: null};
     };
 
     @action query = () => {
@@ -292,6 +294,7 @@ export class SpectralLineQueryWidgetStore extends RegionWidgetStore {
                     this.queryResult = this.initColumnData(ack.spectralLineData, ack.dataSize, this.columnHeaders);
                     this.updateFilterResult(this.fullRowIndexes);
                     this.isDataFiltered = false;
+                    this.sortingInfo = {columnName: null, sortingType: null};
                 } else {
                     this.resetQueryContents();
                     AppStore.Instance.alertStore.showAlert(ack.message);
@@ -352,6 +355,11 @@ export class SpectralLineQueryWidgetStore extends RegionWidgetStore {
             this.updateFilterResult(this.fullRowIndexes);
         }
         this.isDataFiltered = false;
+        this.sortingInfo = {columnName: null, sortingType: null};
+    };
+
+    @action setSortingInfo = (columnName: string, sortingType: CARTA.SortingType) => {
+        this.sortingInfo = {columnName, sortingType};
     };
 
     @action.bound setResultTableColumnWidth(width: number, columnName: string) {
