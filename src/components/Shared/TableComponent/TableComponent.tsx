@@ -6,7 +6,6 @@ import {IconName} from "@blueprintjs/icons";
 import {IRowIndices} from "@blueprintjs/table/lib/esm/common/grid";
 import {CARTA} from "carta-protobuf";
 import {ControlHeader} from "stores";
-import {SpectralLineHeaders} from "stores/widgets";
 import {ProcessedColumnData} from "models";
 import "./TableComponent.scss";
 
@@ -153,7 +152,7 @@ export class TableComponent extends React.Component<TableComponentProps> {
         );
     };
 
-    private renderCheckboxColumn = (columnHeader: CARTA.CatalogHeader, columnData: any) => {
+    protected renderCheckboxColumn = (columnHeader: CARTA.CatalogHeader, columnData: any) => {
         let selected = 0;
         columnData?.forEach(isSelected => selected += (isSelected ? 1 : 0));
         const selectionType = (selected === 0) ? RowSelectionType.None : (selected === columnData?.length ? RowSelectionType.All : RowSelectionType.Indeterminate);
@@ -168,7 +167,7 @@ export class TableComponent extends React.Component<TableComponentProps> {
         );
     };
 
-    private renderDataColumnWithFilter = (columnHeader: CARTA.CatalogHeader, columnData: any) => {
+    protected renderDataColumnWithFilter = (columnHeader: CARTA.CatalogHeader, columnData: any) => {
         return (
             <Column
                 key={columnHeader.name}
@@ -270,7 +269,7 @@ export class TableComponent extends React.Component<TableComponentProps> {
         return false;
     }
 
-    private infiniteScroll = (rowIndices: IRowIndices) => {
+    protected infiniteScroll = (rowIndices: IRowIndices) => {
         // rowIndices offset around 5 form blueprintjs tabel
         const currentIndex = rowIndices.rowIndexEnd + 1;
         if (rowIndices.rowIndexEnd > 0 && currentIndex >= this.props.numVisibleRows && !this.props.loadingCell && !this.props.showSelectedData) {
@@ -290,14 +289,14 @@ export class TableComponent extends React.Component<TableComponentProps> {
         );
     }
 
-    private updateTableColumnWidth = (index: number, size: number) => {
+    protected updateTableColumnWidth = (index: number, size: number) => {
         const header = this.props.columnHeaders[index];
         if (header && this.props.updateTableColumnWidth) {
             this.props.updateTableColumnWidth(size, header.name);
         }
     };
 
-    private onRowIndexSelection = (selectedRegions: IRegion[]) => {
+    protected onRowIndexSelection = (selectedRegions: IRegion[]) => {
         if (selectedRegions.length > 0) {
             let selectedDataIndex = [];
             for (let i = 0; i < selectedRegions.length; i++) {
@@ -324,15 +323,10 @@ export class TableComponent extends React.Component<TableComponentProps> {
         table.columnHeaders?.forEach(header => {
             const columnIndex = header.columnIndex;
             let dataArray = tableData.get(columnIndex)?.data;
-            if (table.type === TableType.ColumnFilter) {
-                const column = (header.name === SpectralLineHeaders.LineSelection && this.props.flipRowSelection) ?
-                    this.renderCheckboxColumn(header, dataArray) :
-                    this.renderDataColumnWithFilter(header, dataArray);
-                tableColumns.push(column);
-            } else if (table.type === TableType.Normal) {
-                const column = this.renderDataColumn(header.name, dataArray);
-                tableColumns.push(column);
-            }
+            tableColumns.push(table.type === TableType.ColumnFilter ?
+                this.renderDataColumnWithFilter(header, dataArray) :
+                this.renderDataColumn(header.name, dataArray)
+            );
         });
 
         if (table.type === TableType.ColumnFilter) {
