@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as _ from "lodash";
-import {action, makeObservable, observable} from "mobx";
+import {action, computed, makeObservable, observable} from "mobx";
 import {observer} from "mobx-react";
 import {Group, Layer, Line, Rect, Stage} from "react-konva";
 import Konva from "konva";
@@ -420,18 +420,11 @@ export class RegionViewComponent extends React.Component<RegionViewComponentProp
         }
     };
 
-    render() {
+    @computed get regionComponents() {
         const frame = this.props.frame;
         const regionSet = frame.regionSet;
-
-        let className = "region-stage";
-        if (this.props.docked) {
-            className += " docked";
-        }
-
-        let regionComponents = null;
         if (regionSet && regionSet.regions.length) {
-            regionComponents = regionSet.regions.filter(r => r.isValid && r.regionId !== 0).sort((a, b) => a.boundingBoxArea > b.boundingBoxArea ? -1 : 1).map(r => {
+            return regionSet.regions.filter(r => r.isValid && r.regionId !== 0).sort((a, b) => a.boundingBoxArea > b.boundingBoxArea ? -1 : 1).map(r => {
                     if (r.regionType === CARTA.RegionType.POLYGON) {
                         return (
                             <PolygonRegionComponent
@@ -477,6 +470,17 @@ export class RegionViewComponent extends React.Component<RegionViewComponentProp
                     }
                 }
             );
+        }
+        return [];
+    }
+
+    render() {
+        const frame = this.props.frame;
+        const regionSet = frame.regionSet;
+
+        let className = "region-stage";
+        if (this.props.docked) {
+            className += " docked";
         }
 
         let cursorMarker = null;
@@ -568,7 +572,7 @@ export class RegionViewComponent extends React.Component<RegionViewComponentProp
                     y={0}
                 >
                     <Layer>
-                        {regionComponents}
+                        {this.regionComponents}
                         {polygonCreatingLine}
                         {cursorMarker}
                     </Layer>
