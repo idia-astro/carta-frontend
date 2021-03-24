@@ -3,7 +3,7 @@ import * as React from "react";
 import {CARTA} from "carta-protobuf";
 import {AnchorButton, ButtonGroup, IOptionProps, Menu, MenuItem, Popover, Position, Tooltip} from "@blueprintjs/core";
 import {AppStore} from "stores";
-import {ProfileCategory, SpectralProfileWidgetStore} from "stores/widgets";
+import {ProfileCategory, MultipleProfileStore, SpectralProfileWidgetStore} from "stores/widgets";
 import {SpectralProfilerComponent, SpectralProfilerSettingsTabs} from "components";
 import {CustomIcon} from "icons/CustomIcons";
 import "./SpectralProfilerToolbarComponent.scss";
@@ -15,39 +15,104 @@ export interface ProfileItemOptionProps extends IOptionProps{
 
 type MultiSelectItem = string | CARTA.StatsType;
 
-class ProfileSelectionButtonComponentProps {
-    categoryName: ProfileCategory;
-    isActiveCategory: boolean;
-    itemOptions: ProfileItemOptionProps[];
-    itemSelected: MultiSelectItem[];
-    disabled: boolean;
-    onCategorySelect: () => void;
-    onItemSelect: (item: MultiSelectItem) => void;
-}
-
 @observer
-class ProfileSelectionButtonComponent extends React.Component<ProfileSelectionButtonComponentProps> {
+class ProfileSelectionComponent extends React.Component<{profileSelectionStore: MultipleProfileStore}> {
+    private onFrameItemClick = (selectedFrame: number) => {
+        this.props.profileSelectionStore.selectFrame(selectedFrame);
+    };
+
+    private onRegionItemClick = (selectedRegionId: number) => {
+        this.props.profileSelectionStore.selectRegion(selectedRegionId);
+    };
+
+    private onStatsItemClick = (selectedStatsType: CARTA.StatsType) => {
+        this.props.profileSelectionStore.selectStatsType(selectedStatsType);
+    };
+
+    private onStokesItemClick = (selectedStokes: string) => {
+        this.props.profileSelectionStore.selectCoordinate(selectedStokes);
+    };
+
     public render() {
+        const profileSelectionStore = this.props.profileSelectionStore;
+
+        const enableFrameSelect = true;
+        const enableRegionSelect = true;
+        const enableStatsSelect = true; // TODO: check isClosedRegion
+        const enableStokesSelect = profileSelectionStore.selectedFrame?.hasStokes;
+
+        let enableSelectionMenu = true;
+        let itemOptions: ProfileItemOptionProps[];
+        let itemSelected: MultiSelectItem[];
+        let onItemClick: (item: MultiSelectItem) => void;
+        if (profileSelectionStore.profileCategory === ProfileCategory.IMAGE) {
+            itemOptions = profileSelectionStore.frameOptions;
+            itemSelected = [profileSelectionStore.selectedFrameFileId];
+            onItemClick = this.onFrameItemClick;
+            enableSelectionMenu = enableSelectionMenu && enableFrameSelect;
+        } else if (profileSelectionStore.profileCategory === ProfileCategory.REGION) {
+            itemOptions = profileSelectionStore.regionOptions;
+            itemSelected = profileSelectionStore.selectedRegionIds;
+            onItemClick = this.onRegionItemClick;
+            enableSelectionMenu = enableSelectionMenu && enableRegionSelect;
+        } else if (profileSelectionStore.profileCategory === ProfileCategory.STATISTICS) {
+            itemOptions = profileSelectionStore.statsTypeOptions;
+            itemSelected = profileSelectionStore.selectedStatsTypes;
+            onItemClick = this.onStatsItemClick;
+            enableSelectionMenu = enableSelectionMenu && enableStatsSelect;
+        } else {
+            itemOptions = profileSelectionStore.coordinateOptions;
+            itemSelected = profileSelectionStore.selectedCoordinates;
+            onItemClick = this.onStokesItemClick;
+            enableSelectionMenu = enableSelectionMenu && enableStokesSelect;
+        }
+
         return (
-            <ButtonGroup fill={true} className="category-set">
-                <Tooltip content={`Show multiple profiles - ${this.props.categoryName}`} position={Position.TOP}>
-                    <AnchorButton
-                        text={this.props.categoryName}
-                        active={this.props.isActiveCategory}
-                        onClick={(ev) => this.props.onCategorySelect()}
-                        disabled={this.props.disabled}
-                    />
-                </Tooltip>
+            <div className="profile-selection-panel">
+                <ButtonGroup className="category-buttons">
+                    <Tooltip content={`Click to show profiles - ${ProfileCategory.IMAGE}`} position={Position.TOP}>
+                        <AnchorButton
+                            text={ProfileCategory.IMAGE}
+                            active={profileSelectionStore.profileCategory === ProfileCategory.IMAGE}
+                            onClick={(ev) => profileSelectionStore.setProfileCategory(ProfileCategory.IMAGE)}
+                            disabled={!enableFrameSelect}
+                        />
+                    </Tooltip>
+                    <Tooltip content={`Click to show profiles - ${ProfileCategory.REGION}`} position={Position.TOP}>
+                        <AnchorButton
+                            text={ProfileCategory.REGION}
+                            active={profileSelectionStore.profileCategory === ProfileCategory.REGION}
+                            onClick={(ev) => profileSelectionStore.setProfileCategory(ProfileCategory.REGION)}
+                            disabled={!enableRegionSelect}
+                        />
+                    </Tooltip>
+                    <Tooltip content={`Click to show profiles - ${ProfileCategory.STATISTICS}`} position={Position.TOP}>
+                        <AnchorButton
+                            text={ProfileCategory.STATISTICS}
+                            active={profileSelectionStore.profileCategory === ProfileCategory.STATISTICS}
+                            onClick={(ev) => profileSelectionStore.setProfileCategory(ProfileCategory.STATISTICS)}
+                            disabled={!enableStatsSelect}
+                        />
+                    </Tooltip>
+                    <Tooltip content={`Click to show profiles - ${ProfileCategory.STOKES}`} position={Position.TOP}>
+                        <AnchorButton
+                            text={ProfileCategory.STOKES}
+                            active={profileSelectionStore.profileCategory === ProfileCategory.STOKES}
+                            onClick={(ev) => profileSelectionStore.setProfileCategory(ProfileCategory.STOKES)}
+                            disabled={!enableStokesSelect}
+                        />
+                    </Tooltip>
+                </ButtonGroup>
                 <Popover
                     content={
                         <Menu>
-                            {this.props.itemOptions?.map((item) =>
+                            {itemOptions?.map((item) =>
                                 <MenuItem
                                     key={item.value}
                                     text={item.label}
                                     disabled={item.disable}
-                                    onClick={(ev) => this.props.onItemSelect(item.value)}
-                                    icon={this.props.itemSelected?.includes(item.value) ? "tick" : "blank"}
+                                    onClick={(ev) => onItemClick(item.value)}
+                                    icon={itemSelected?.includes(item.value) ? "tick" : "blank"}
                                     shouldDismissPopover={false}
                                 />
                             )}
@@ -55,84 +120,10 @@ class ProfileSelectionButtonComponent extends React.Component<ProfileSelectionBu
                     }
                     minimal={true}
                     placement={Position.BOTTOM}
-                    disabled={!this.props.isActiveCategory || this.props.disabled}
+                    disabled={!enableSelectionMenu}
                 >
-                    <AnchorButton rightIcon={"caret-down"} disabled={!this.props.isActiveCategory || this.props.disabled}/>
+                    <AnchorButton text={`Select ${profileSelectionStore.profileCategory}`} rightIcon={"caret-down"} disabled={!enableSelectionMenu}/>
                 </Popover>
-            </ButtonGroup>
-        );
-    }
-}
-
-@observer
-class ProfileSelectionComponent extends React.Component<{widgetStore: SpectralProfileWidgetStore}> {
-    private onFrameItemClick = (selectedFrame: number) => {
-        this.props.widgetStore.multipleProfileStore.selectFrame(selectedFrame);
-    };
-
-    private onRegionItemClick = (selectedRegion: number) => {
-        this.props.widgetStore.multipleProfileStore.selectRegion(selectedRegion);
-    };
-
-    private onStatsItemClick = (selectedStatsType: CARTA.StatsType) => {
-        this.props.widgetStore.multipleProfileStore.selectStatsType(selectedStatsType);
-    };
-
-    private onStokesItemClick = (selectedStokes: string) => {
-        this.props.widgetStore.multipleProfileStore.selectCoordinate(selectedStokes);
-    };
-
-    public render() {
-        const widgetStore = this.props.widgetStore;
-        const multipleProfileStore = widgetStore.multipleProfileStore;
-
-        let enableFrameSelect = true;
-        let enableRegionSelect = true;
-        let enableStatsSelect = false;
-
-        if (widgetStore.effectiveFrame && widgetStore.effectiveFrame.regionSet) {
-            const selectedRegion = widgetStore.effectiveFrame.regionSet.regions.find(r => r.regionId === widgetStore.effectiveRegionId);
-            enableStatsSelect = (selectedRegion && selectedRegion.isClosedRegion);
-        }
-
-        return (
-            <div className="profile-selection-panel">
-                <ProfileSelectionButtonComponent
-                    categoryName={ProfileCategory.IMAGE}
-                    isActiveCategory={multipleProfileStore.profileCategory === ProfileCategory.IMAGE}
-                    itemOptions={multipleProfileStore.frameOptions}
-                    itemSelected={[multipleProfileStore.selectedFrameFileId]}
-                    disabled={!enableFrameSelect}
-                    onCategorySelect={() => multipleProfileStore.setProfileCategory(ProfileCategory.IMAGE)}
-                    onItemSelect={this.onFrameItemClick}
-                />
-                <ProfileSelectionButtonComponent
-                    categoryName={ProfileCategory.REGION}
-                    isActiveCategory={multipleProfileStore.profileCategory === ProfileCategory.REGION}
-                    itemOptions={multipleProfileStore.regionOptions}
-                    itemSelected={multipleProfileStore.selectedRegionIds}
-                    disabled={!enableRegionSelect}
-                    onCategorySelect={() => multipleProfileStore.setProfileCategory(ProfileCategory.REGION)}
-                    onItemSelect={this.onRegionItemClick}
-                />
-                <ProfileSelectionButtonComponent
-                    categoryName={ProfileCategory.STATISTICS}
-                    isActiveCategory={multipleProfileStore.profileCategory === ProfileCategory.STATISTICS}
-                    itemOptions={multipleProfileStore.statsTypeOptions}
-                    itemSelected={multipleProfileStore.selectedStatsTypes}
-                    disabled={!enableStatsSelect}
-                    onCategorySelect={() => multipleProfileStore.setProfileCategory(ProfileCategory.STATISTICS)}
-                    onItemSelect={this.onStatsItemClick}
-                />
-                <ProfileSelectionButtonComponent
-                    categoryName={ProfileCategory.STOKES}
-                    isActiveCategory={multipleProfileStore.profileCategory === ProfileCategory.STOKES}
-                    itemOptions={multipleProfileStore.coordinateOptions}
-                    itemSelected={multipleProfileStore.selectedCoordinates}
-                    disabled={!multipleProfileStore.selectedFrame?.hasStokes}
-                    onCategorySelect={() => multipleProfileStore.setProfileCategory(ProfileCategory.STOKES)}
-                    onItemSelect={this.onStokesItemClick}
-                />
             </div>
         );
     }
@@ -151,10 +142,9 @@ export class SpectralProfilerToolbarComponent extends React.Component<{ widgetSt
     };
 
     public render() {
-        const widgetStore = this.props.widgetStore;
         return (
             <div className="spectral-profiler-toolbar">
-                <ProfileSelectionComponent widgetStore={widgetStore}/>
+                <ProfileSelectionComponent profileSelectionStore={this.props.widgetStore.multipleProfileStore}/>
                 <ButtonGroup className="shortcut-buttons">
                     <Tooltip content="Smoothing">
                         <AnchorButton icon={<CustomIcon icon="smoothing"/>} onClick={this.smoothingShortcutClick}/>

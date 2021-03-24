@@ -17,6 +17,7 @@ interface FullSpectralConfig extends CARTA.SetSpectralRequirements.ISpectralConf
     regionId: number;
 }
 
+//TODO: rename to SpectralProfileSelectionStore
 export class MultipleProfileStore {
     // profile selection
     @observable profileCategory: ProfileCategory;
