@@ -110,7 +110,6 @@ class ProfileSelectionComponent extends React.Component<{profileSelectionStore: 
                                 <MenuItem
                                     key={item.value}
                                     text={item.label}
-                                    disabled={item.disable}
                                     onClick={(ev) => onItemClick(item.value)}
                                     icon={itemSelected?.includes(item.value) ? "tick" : "blank"}
                                     shouldDismissPopover={false}
