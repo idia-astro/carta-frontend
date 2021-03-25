@@ -3,7 +3,7 @@ import * as React from "react";
 import {CARTA} from "carta-protobuf";
 import {AnchorButton, ButtonGroup, IOptionProps, Menu, MenuItem, Popover, Position, Tooltip} from "@blueprintjs/core";
 import {AppStore} from "stores";
-import {ProfileCategory, MultipleProfileStore, SpectralProfileWidgetStore} from "stores/widgets";
+import {ProfileCategory, SpectralProfileSelectionStore, SpectralProfileWidgetStore} from "stores/widgets";
 import {SpectralProfilerComponent, SpectralProfilerSettingsTabs} from "components";
 import {CustomIcon} from "icons/CustomIcons";
 import "./SpectralProfilerToolbarComponent.scss";
@@ -16,7 +16,7 @@ export interface ProfileItemOptionProps extends IOptionProps{
 type MultiSelectItem = string | CARTA.StatsType;
 
 @observer
-class ProfileSelectionComponent extends React.Component<{profileSelectionStore: MultipleProfileStore}> {
+class ProfileSelectionComponent extends React.Component<{profileSelectionStore: SpectralProfileSelectionStore}> {
     private onFrameItemClick = (selectedFrame: number) => {
         this.props.profileSelectionStore.selectFrame(selectedFrame);
     };
@@ -144,7 +144,7 @@ export class SpectralProfilerToolbarComponent extends React.Component<{ widgetSt
     public render() {
         return (
             <div className="spectral-profiler-toolbar">
-                <ProfileSelectionComponent profileSelectionStore={this.props.widgetStore.multipleProfileStore}/>
+                <ProfileSelectionComponent profileSelectionStore={this.props.widgetStore.profileSelectionStore}/>
                 <ButtonGroup className="shortcut-buttons">
                     <Tooltip content="Smoothing">
                         <AnchorButton icon={<CustomIcon icon="smoothing"/>} onClick={this.smoothingShortcutClick}/>

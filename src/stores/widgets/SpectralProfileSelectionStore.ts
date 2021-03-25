@@ -17,8 +17,7 @@ interface FullSpectralConfig extends CARTA.SetSpectralRequirements.ISpectralConf
     regionId: number;
 }
 
-//TODO: rename to SpectralProfileSelectionStore
-export class MultipleProfileStore {
+export class SpectralProfileSelectionStore {
     // profile selection
     @observable profileCategory: ProfileCategory;
     @observable selectedRegionIds: number[];
@@ -158,7 +157,7 @@ export class MultipleProfileStore {
     };
 
     @action selectCoordinate = (coordinate: string) => {
-        if (MultipleProfileStore.ValidCoordinates.includes(coordinate)) {
+        if (SpectralProfileSelectionStore.ValidCoordinates.includes(coordinate)) {
             if (this.selectedCoordinates?.includes(coordinate)) {
                 this.selectedCoordinates = this.selectedCoordinates.filter(coord => coord !== coordinate);
             } else {

@@ -9,4 +9,4 @@ export * from "./EmptyWidgetStore";
 export * from "./StokesAnalysisWidgetStore";
 export * from "./CatalogWidgetStore";
 export * from "./CatalogPlotWidgetStore";
-export * from "./MultipleProfileStore";
+export * from "./SpectralProfileSelectionStore";
