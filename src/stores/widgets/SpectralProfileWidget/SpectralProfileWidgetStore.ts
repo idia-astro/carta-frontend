@@ -2,11 +2,8 @@ import {action, autorun, computed, observable, makeObservable, override} from "m
 import {NumberRange} from "@blueprintjs/core";
 import {CARTA} from "carta-protobuf";
 import {PlotType, LineSettings} from "components/Shared";
-import {RegionWidgetStore, RegionsType, ACTIVE_FILE_ID} from "./RegionWidgetStore";
-import {SpectralLine} from "./SpectralLineQueryWidgetStore";
-import {AppStore} from "stores";
-import {ProfileSmoothingStore} from "stores";
-import {SpectralProfileSelectionStore} from "stores/widgets";
+import {AppStore, ProfileSmoothingStore} from "stores";
+import {RegionWidgetStore, RegionsType, ACTIVE_FILE_ID, SpectralLine, SpectralProfileSelectionStore} from "stores/widgets";
 import {SpectralSystem, SpectralType, SpectralUnit} from "models";
 import tinycolor from "tinycolor2";
 import {SpectralProfilerSettingsTabs} from "components";

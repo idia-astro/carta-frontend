@@ -1,7 +1,7 @@
 import {action, computed, makeObservable, observable} from "mobx";
 import {CARTA} from "carta-protobuf";
-import {AppStore, FrameStore} from "..";
-import {RegionId, SpectralProfileWidgetStore} from ".";
+import {AppStore, FrameStore} from "stores";
+import {RegionId, SpectralProfileWidgetStore} from "stores/widgets";
 import {ProfileItemOptionProps} from "components";
 import {STATISTICS_TEXT, SUPPORTED_STATISTICS_TYPES} from "models";
 
