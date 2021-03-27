@@ -280,7 +280,7 @@ export class FilterableTableComponent extends React.Component<FilterableTableCom
     };
 
     private onRowIndexSelection = (selectedRegions: IRegion[]) => {
-        if (selectedRegions.length > 0) {
+        if (this.props.updateSelectedRow && selectedRegions?.length > 0) {
             let selectedDataIndex = [];
             for (let i = 0; i < selectedRegions.length; i++) {
                 const region = selectedRegions[i];
@@ -294,7 +294,7 @@ export class FilterableTableComponent extends React.Component<FilterableTableCom
                     }
                 } 
             }
-            this.props.updateSelectedRow?.(selectedDataIndex);
+            this.props.updateSelectedRow(selectedDataIndex);
         }
     };
 
