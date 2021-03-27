@@ -149,6 +149,7 @@ export class SpectralLineQueryWidgetStore extends RegionWidgetStore {
     @observable numDataRows: number;
     @observable selectedSpectralProfilerID: string;
     @observable controlHeader: Map<string, ControlHeader>;
+    @observable sortingInfo: {columnName: string, sortingType: CARTA.SortingType};
 
     // raw copy of the shifted frequency column, does not apply shifting factor
     private shiftedFreqColumnRawData: Array<number>;
@@ -359,11 +360,16 @@ export class SpectralLineQueryWidgetStore extends RegionWidgetStore {
         }
         this.isDataFiltered = false;
         this.filterNum = 0;
+        this.sortingInfo = {columnName: null, sortingType: null};
     };
 
-    @action.bound setResultTableColumnWidth(width: number, columnName: string) {
+    @action.bound setResultTableColumnWidth = (width: number, columnName: string) => {
         this.controlHeader.get(columnName).columnWidth = width;
-    }
+    };
+
+    @action setSortingInfo = (columnName: string, sortingType: CARTA.SortingType) => {
+        this.sortingInfo = {columnName, sortingType};
+    };
 
     @computed get fullRowIndexes(): Array<number> {
         return Array.from(Array(this.numDataRows).keys());
@@ -556,6 +562,7 @@ export class SpectralLineQueryWidgetStore extends RegionWidgetStore {
         this.selectedSpectralProfilerID = AppStore.Instance.widgetsStore.spectralProfilerList.length > 0 ?
             AppStore.Instance.widgetsStore.spectralProfilerList[0] : undefined;
         this.resetQueryContents();
+        this.sortingInfo = {columnName: null, sortingType: null};
 
         // update selected spectral profiler when currently selected is closed
         autorun(() => {
