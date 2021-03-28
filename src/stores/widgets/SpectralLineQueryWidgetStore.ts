@@ -1,6 +1,6 @@
 import {action, autorun, computed, observable, makeObservable} from "mobx";
 import {NumberRange} from "@blueprintjs/core";
-import {Table} from "@blueprintjs/table";
+import {Table, Utils} from "@blueprintjs/table";
 import {CARTA} from "carta-protobuf";
 import {AppStore, ControlHeader} from "stores";
 import * as _ from "lodash";
@@ -150,6 +150,7 @@ export class SpectralLineQueryWidgetStore extends RegionWidgetStore {
     @observable selectedSpectralProfilerID: string;
     @observable controlHeader: Map<string, ControlHeader>;
     @observable sortingInfo: {columnName: string, sortingType: CARTA.SortingType};
+    private sortedIndexMap: number[];
 
     // raw copy of the shifted frequency column, does not apply shifting factor
     private shiftedFreqColumnRawData: Array<number>;
@@ -367,8 +368,9 @@ export class SpectralLineQueryWidgetStore extends RegionWidgetStore {
         this.controlHeader.get(columnName).columnWidth = width;
     };
 
-    @action setSortingInfo = (columnName: string, sortingType: CARTA.SortingType) => {
+    @action updateSortRequest = (columnName: string, sortingType: CARTA.SortingType) => {
         this.sortingInfo = {columnName, sortingType};
+        // TODO: sort here
     };
 
     @computed get fullRowIndexes(): Array<number> {
@@ -544,6 +546,22 @@ export class SpectralLineQueryWidgetStore extends RegionWidgetStore {
         } else {
             return undefined;
         }
+    };
+
+    private numericSortComparator = (a: any, b: any) => {
+        return a - b;
+    };
+
+    private textSortComparator = (a: any, b: any) => {
+        return a.toString().localeCompare(b);
+    };
+
+    private sortColumn = (data: any[], comparator: (a: any, b: any) => number) => {
+        const sortedIndexMap = Utils.times(data.length, (i: number) => i);
+        sortedIndexMap.sort((a: number, b: number) => {
+            return comparator(data[a], data[b]);
+        });
+        this.sortedIndexMap = sortedIndexMap;
     };
 
     constructor() {

@@ -3,7 +3,6 @@ import {action, computed, makeObservable, observable} from "mobx";
 import {observer} from "mobx-react";
 import {AnchorButton, Button, Classes, ControlGroup, FormGroup, HTMLSelect, Intent, Menu, MenuItem, Overlay, Popover, Position, Spinner, Switch, Tooltip} from "@blueprintjs/core";
 import {Cell, Column, Regions, RenderMode, SelectionModes, Table} from "@blueprintjs/table";
-import {CARTA} from "carta-protobuf";
 import SplitPane, { Pane } from "react-split-pane";
 import ReactResizeDetector from "react-resize-detector";
 import {SafeNumericInput, FilterableTableComponent, FilterableTableComponentProps} from "components/Shared";
@@ -353,9 +352,8 @@ export class SpectralLineQueryComponent extends React.Component<WidgetProps> {
             flipRowSelection: widgetStore.selectSingleLine,
             updateTableRef: (ref) => { this.resultTableRef = ref; },
             disableSort: false,
-            sortWithFrontend: true,
             sortingInfo: widgetStore.sortingInfo,
-            updateSortRequest: (columnName: string, sortingType: CARTA.SortingType) => {widgetStore.setSortingInfo(columnName, sortingType);},
+            updateSortRequest: widgetStore.updateSortRequest,
             updateColumnFilter: widgetStore.setColumnFilter,
             columnWidths: widgetStore.resultTableColumnWidths,
             updateTableColumnWidth: widgetStore.setResultTableColumnWidth,
