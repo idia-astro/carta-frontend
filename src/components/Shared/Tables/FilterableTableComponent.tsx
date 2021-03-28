@@ -19,6 +19,7 @@ enum RowSelectionType {
 }
 
 export class FilterableTableComponentProps {
+    sortWithFrontend?: boolean;
     dataset: Map<number, ProcessedColumnData>;
     filter?: Map<string, ControlHeader>;
     columnHeaders: Array<CARTA.CatalogHeader>;
@@ -162,7 +163,7 @@ export class FilterableTableComponent extends React.Component<FilterableTableCom
         );
     };
 
-    private renderDataColumnWithFilter = (columnHeader: CARTA.CatalogHeader, columnData: any) => {
+    private renderDataColumn = (columnHeader: CARTA.CatalogHeader, columnData: any) => {
         return (
             <Column
                 key={columnHeader.name}
@@ -171,6 +172,10 @@ export class FilterableTableComponent extends React.Component<FilterableTableCom
                 cellRenderer={columnData?.length ? (rowIndex, columnIndex) => this.renderCell(rowIndex, columnIndex, columnData) : undefined}
             />
         );
+    };
+
+    private renderColumnWithFilter = (columnHeader: CARTA.CatalogHeader, columnData: any, isCheckboxColumn: boolean = false) => {
+        return isCheckboxColumn ? this.renderCheckboxColumn(columnHeader, columnData) : this.renderDataColumn(columnHeader, columnData);
     };
 
     private renderCell = (rowIndex: number, columnIndex: number, columnData: any) => {
@@ -300,17 +305,24 @@ export class FilterableTableComponent extends React.Component<FilterableTableCom
 
     render() {
         const table = this.props;
-        const tableColumns = [];
         const tableData = table.dataset;
+        let tableColumns = [];
 
-        table.columnHeaders?.forEach(header => {
-            const columnIndex = header.columnIndex;
-            let dataArray = tableData.get(columnIndex)?.data;
-            const column = (header.name === SpectralLineHeaders.LineSelection && this.props.flipRowSelection) ?
-                this.renderCheckboxColumn(header, dataArray) :
-                this.renderDataColumnWithFilter(header, dataArray);
-            tableColumns.push(column);
-        });
+        if (this.props.sortWithFrontend) {
+            // TODO: build index map
+            table.columnHeaders?.forEach(header => {
+                const columnIndex = header.columnIndex;
+                const dataArray = tableData.get(columnIndex)?.data;
+                const isCheckboxColumn = header.name === SpectralLineHeaders.LineSelection && this.props.flipRowSelection !== undefined;
+                tableColumns.push(this.renderColumnWithFilter(header, dataArray, isCheckboxColumn));
+            });
+        } else {
+            table.columnHeaders?.forEach(header => {
+                const columnIndex = header.columnIndex;
+                const dataArray = tableData.get(columnIndex)?.data;
+                tableColumns.push(this.renderColumnWithFilter(header, dataArray));
+            });
+        }
 
         return (
             <Table

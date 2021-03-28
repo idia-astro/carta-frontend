@@ -353,6 +353,7 @@ export class SpectralLineQueryComponent extends React.Component<WidgetProps> {
             flipRowSelection: widgetStore.selectSingleLine,
             updateTableRef: (ref) => { this.resultTableRef = ref; },
             disableSort: false,
+            sortWithFrontend: true,
             sortingInfo: widgetStore.sortingInfo,
             updateSortRequest: (columnName: string, sortingType: CARTA.SortingType) => {widgetStore.setSortingInfo(columnName, sortingType);},
             updateColumnFilter: widgetStore.setColumnFilter,
