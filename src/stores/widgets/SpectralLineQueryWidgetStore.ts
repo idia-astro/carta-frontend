@@ -371,6 +371,23 @@ export class SpectralLineQueryWidgetStore extends RegionWidgetStore {
     @action updateSortRequest = (columnName: string, sortingType: CARTA.SortingType) => {
         this.sortingInfo = {columnName, sortingType};
         // TODO: sort here
+        const data = this.filterResult.get();
+        const comparator = ? this.numericSortComparator : this.textSortComparator;
+        const sortedIndexMap = Utils.times(data.length, (i: number) => i);
+        if (sortingType === CARTA.SortingType.Ascending) {
+            sortedIndexMap.sort((a: number, b: number) => {
+                return comparator(data[a], data[b]);
+            });
+            this.sortedIndexMap = sortedIndexMap;
+        } else if (sortingType === CARTA.SortingType.Descending) {
+            sortedIndexMap.sort((a: number, b: number) => {
+                return comparator(data[b], data[a]);
+            });
+            this.sortedIndexMap = sortedIndexMap;
+        } else {
+
+        }
+        // rearrange data according to sortedIndexMap
     };
 
     @computed get fullRowIndexes(): Array<number> {
