@@ -18,6 +18,8 @@ enum RowSelectionType {
     All
 }
 
+const KEYCODE_ENTER = 13;
+
 export class FilterableTableComponentProps {
     dataset: Map<number, ProcessedColumnData>;
     filter?: Map<string, ControlHeader>;
@@ -27,6 +29,7 @@ export class FilterableTableComponentProps {
     loadingCell?: boolean;
     selectedDataIndex?: number[];
     showSelectedData?: boolean;
+    onFilter?: () => void;
     updateTableRef?: (ref: Table) => void;
     updateColumnFilter?: (value: string, columnName: string) => void;
     updateByInfiniteScroll?: (rowIndexEnd: number) => void;
@@ -124,6 +127,11 @@ export class FilterableTableComponent extends React.Component<FilterableTableCom
                             placeholder="Click to filter"
                             value={controlheader?.filter ?? ""}
                             onChange={ev => this.props.updateColumnFilter(ev.currentTarget.value, columnHeader.name)}
+                            onKeyDown={ev => {
+                                if (this.props.onFilter && ev.type === "keydown" && ev.keyCode === KEYCODE_ENTER) {
+                                    this.props.onFilter();
+                                }
+                            }}
                         />
                     </Popover>
                 </ColumnHeaderCell>
@@ -250,6 +258,11 @@ export class FilterableTableComponent extends React.Component<FilterableTableCom
                             placeholder="Click to filter"
                             value={controlheader?.filter ?? ""}
                             onChange={ev => this.props.updateColumnFilter(ev.currentTarget.value, column.name)}
+                            onKeyDown={ev => {
+                                if (this.props.onFilter && ev.type === "keydown" && ev.keyCode === KEYCODE_ENTER) {
+                                    this.props.onFilter();
+                                }
+                            }}
                         />
                     </Popover>
                 </ColumnHeaderCell>
