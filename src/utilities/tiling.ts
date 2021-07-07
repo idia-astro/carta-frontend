@@ -1,4 +1,6 @@
-import {FrameView, Point2D, TileCoordinate} from "../models";
+import {TileCoordinate} from "models/TileCoordinate";
+import {Point2D} from "models/Point2D";
+import {FrameView} from "models/FrameView";
 
 export function TileSort(a: TileCoordinate, b: TileCoordinate) {
     if (a.layer !== b.layer) {
@@ -75,7 +77,7 @@ export function GetRequiredTiles(frameView: FrameView, imageSize: Point2D, tileS
 
     const adjustedTileSize: Point2D = {
         x: frameView.mip * tileSize.x,
-        y: frameView.mip * tileSize.y,
+        y: frameView.mip * tileSize.y
     };
 
     const xStart = Math.floor(boundedFrameView.xMin / adjustedTileSize.x);

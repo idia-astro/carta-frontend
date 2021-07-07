@@ -1,10 +1,11 @@
 import tinycolor from "tinycolor2";
 import {action, computed, observable, makeObservable} from "mobx";
-import {Colors} from "@blueprintjs/core";
-import {FrameStore, ProfileSmoothingStore} from "stores";
+import * as _ from "lodash";
 import {CARTA} from "carta-protobuf";
+import {AppStore, FrameStore, ProfileSmoothingStore} from "stores";
 import {PlotType, LineSettings} from "components/Shared";
 import {SpatialProfilerSettingsTabs} from "components";
+import {clamp, isAutoColor} from "utilities";
 
 export class SpatialProfileWidgetStore {
     @observable fileId: number;
@@ -18,14 +19,14 @@ export class SpatialProfileWidgetStore {
     @observable markerTextVisible: boolean;
     @observable isMouseMoveIntoLinePlots: boolean;
 
-    // settings 
+    // settings
     @observable wcsAxisVisible: boolean;
     @observable plotType: PlotType;
     @observable meanRmsVisible: boolean;
-    @observable primaryLineColor: { colorHex: string, fixed: boolean };
+    @observable primaryLineColor: string;
     @observable lineWidth: number;
     @observable linePlotPointSize: number;
-    @observable linePlotInitXYBoundaries: { minXVal: number, maxXVal: number, minYVal: number, maxYVal: number };
+    @observable linePlotInitXYBoundaries: {minXVal: number; maxXVal: number; minYVal: number; maxYVal: number};
     readonly smoothingStore: ProfileSmoothingStore;
     @observable settingsTabId: SpatialProfilerSettingsTabs;
 
@@ -112,7 +113,7 @@ export class SpatialProfileWidgetStore {
 
     @action setSettingsTabId = (val: SpatialProfilerSettingsTabs) => {
         this.settingsTabId = val;
-    }
+    };
 
     constructor(coordinate: string = "x", fileId: number = -1, regionId: number = 0) {
         makeObservable(this);
@@ -126,20 +127,45 @@ export class SpatialProfileWidgetStore {
         this.meanRmsVisible = false;
         this.markerTextVisible = false;
         this.wcsAxisVisible = true;
-        this.primaryLineColor = { colorHex: Colors.BLUE2, fixed: false };
+        this.primaryLineColor = "auto-blue";
         this.linePlotPointSize = 1.5;
         this.lineWidth = 1;
-        this.linePlotInitXYBoundaries = { minXVal: 0, maxXVal: 0, minYVal: 0, maxYVal: 0 };
+        this.linePlotInitXYBoundaries = {minXVal: 0, maxXVal: 0, minYVal: 0, maxYVal: 0};
         this.smoothingStore = new ProfileSmoothingStore();
         this.settingsTabId = SpatialProfilerSettingsTabs.STYLING;
     }
 
     @computed get isAutoScaledX() {
-        return (this.minX === undefined || this.maxX === undefined);
+        return this.minX === undefined || this.maxX === undefined;
     }
 
     @computed get isAutoScaledY() {
-        return (this.minY === undefined || this.maxY === undefined);
+        return this.minY === undefined || this.maxY === undefined;
+    }
+
+    private static GetCursorSpatialConfig(frame: FrameStore, coordinate: string): CARTA.SetSpatialRequirements.ISpatialConfig {
+        if (frame.cursorMoving && !AppStore.Instance.cursorFrozen) {
+            if (coordinate.includes("x")) {
+                return {
+                    coordinate,
+                    mip: clamp(frame.requiredFrameView.mip, 1, frame.maxMip),
+                    start: Math.floor(clamp(frame.requiredFrameView.xMin, 0, frame.frameInfo.fileInfoExtended.width)),
+                    end: Math.ceil(clamp(frame.requiredFrameView.xMax, 0, frame.frameInfo.fileInfoExtended.width))
+                };
+            } else {
+                return {
+                    coordinate,
+                    mip: clamp(frame.requiredFrameView.mip, 1, frame.maxMip),
+                    start: Math.floor(clamp(frame.requiredFrameView.yMin, 0, frame.frameInfo.fileInfoExtended.height)),
+                    end: Math.ceil(clamp(frame.requiredFrameView.yMax, 0, frame.frameInfo.fileInfoExtended.height))
+                };
+            }
+        } else {
+            return {
+                coordinate,
+                mip: 1
+            };
+        }
     }
 
     public static CalculateRequirementsMap(frame: FrameStore, widgetsMap: Map<string, SpatialProfileWidgetStore>) {
@@ -154,6 +180,7 @@ export class SpatialProfileWidgetStore {
                 return;
             }
 
+            const spatialConfig = SpatialProfileWidgetStore.GetCursorSpatialConfig(frame, coordinate);
             const region = frame.regionSet.regions.find(r => r.regionId === regionId);
             if (region) {
                 let frameRequirements = updatedRequirements.get(fileId);
@@ -172,8 +199,11 @@ export class SpatialProfileWidgetStore {
                     regionRequirements.spatialProfiles = [];
                 }
 
-                if (regionRequirements.spatialProfiles.indexOf(coordinate) === -1) {
-                    regionRequirements.spatialProfiles.push(coordinate);
+                const existingConfig = regionRequirements.spatialProfiles.find(c => c.coordinate === coordinate);
+                if (existingConfig) {
+                    // TODO: Merge existing configs, rather than only allowing a single one
+                } else {
+                    regionRequirements.spatialProfiles.push(spatialConfig);
                 }
             }
         });
@@ -236,7 +266,7 @@ export class SpatialProfileWidgetStore {
                         for (let i = 0; i < updatedConfigCount; i++) {
                             const updatedConfig = sortedUpdatedConfigs[i];
                             const config = sortedConfigs[i];
-                            if (updatedConfig !== config) {
+                            if (!_.isEqual(config, updatedConfig)) {
                                 diffList.push(updatedRegionRequirements);
                                 return;
                             }
@@ -244,31 +274,30 @@ export class SpatialProfileWidgetStore {
                     }
                 });
             }
-
         });
         // Sort list so that requirements clearing occurs first
-        return diffList.sort((a, b) => a.spatialProfiles.length > b.spatialProfiles.length ? 1 : -1);
+        return diffList.sort((a, b) => (a.spatialProfiles.length > b.spatialProfiles.length ? 1 : -1));
     }
 
     // settings
-    @action setPrimaryLineColor = (colorHex: string, fixed: boolean) => {
-        this.primaryLineColor = { colorHex: colorHex, fixed: fixed };
-    }
+    @action setPrimaryLineColor = (color: string) => {
+        this.primaryLineColor = color;
+    };
 
     @action setLineWidth = (val: number) => {
         if (val >= LineSettings.MIN_WIDTH && val <= LineSettings.MAX_WIDTH) {
-            this.lineWidth = val;   
+            this.lineWidth = val;
         }
-    }
+    };
 
     @action setLinePlotPointSize = (val: number) => {
         if (val >= LineSettings.MIN_POINT_SIZE && val <= LineSettings.MAX_POINT_SIZE) {
-            this.linePlotPointSize = val;   
+            this.linePlotPointSize = val;
         }
-    }
+    };
 
-    @action initXYBoundaries (minXVal: number, maxXVal: number, minYVal: number, maxYVal: number) {
-        this.linePlotInitXYBoundaries = { minXVal: minXVal, maxXVal: maxXVal, minYVal: minYVal, maxYVal: maxYVal };
+    @action initXYBoundaries(minXVal: number, maxXVal: number, minYVal: number, maxYVal: number) {
+        this.linePlotInitXYBoundaries = {minXVal: minXVal, maxXVal: maxXVal, minYVal: minYVal, maxYVal: maxYVal};
     }
 
     public init = (widgetSettings): void => {
@@ -279,8 +308,8 @@ export class SpatialProfileWidgetStore {
             this.coordinate = widgetSettings.coordinate;
         }
         const lineColor = tinycolor(widgetSettings.primaryLineColor);
-        if (lineColor.isValid()) {
-            this.primaryLineColor.colorHex = lineColor.toHexString();
+        if (lineColor.isValid() || isAutoColor(widgetSettings.primaryLineColor)) {
+            this.primaryLineColor = widgetSettings.primaryLineColor;
         }
         if (typeof widgetSettings.lineWidth === "number" && widgetSettings.lineWidth >= LineSettings.MIN_WIDTH && widgetSettings.lineWidth <= LineSettings.MAX_WIDTH) {
             this.lineWidth = widgetSettings.lineWidth;
@@ -314,7 +343,7 @@ export class SpatialProfileWidgetStore {
     public toConfig = () => {
         return {
             coordinate: this.coordinate,
-            primaryLineColor: this.primaryLineColor.colorHex,
+            primaryLineColor: this.primaryLineColor,
             lineWidth: this.lineWidth,
             linePlotPointSize: this.linePlotPointSize,
             wcsAxisVisible: this.wcsAxisVisible,

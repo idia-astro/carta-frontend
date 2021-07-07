@@ -7,13 +7,12 @@ import {CARTA} from "carta-protobuf";
 import {DefaultWidgetConfig, WidgetProps, HelpType, WidgetsStore, AppStore} from "stores";
 import {StatsWidgetStore} from "stores/widgets";
 import {toExponential, exportTsvFile} from "utilities";
-import {RegionSelectorComponent} from "components";
+import {RegionSelectorComponent} from "components/Shared";
 import {ToolbarComponent} from "components/Shared/LinePlot/Toolbar/ToolbarComponent";
 import "./StatsComponent.scss";
 
 @observer
 export class StatsComponent extends React.Component<WidgetProps> {
-
     public static get WIDGET_CONFIG(): DefaultWidgetConfig {
         return {
             id: "stats",
@@ -136,7 +135,7 @@ export class StatsComponent extends React.Component<WidgetProps> {
     private getTableValue = (index: number, type: CARTA.StatsType) => {
         let numString = "";
         let unitString = "";
-        
+
         if (this.statsData && isFinite(index) && index >= 0 && index < this.statsData.statistics?.length) {
             const frame = this.widgetStore.effectiveFrame;
             if (frame && frame.unit) {
@@ -153,37 +152,32 @@ export class StatsComponent extends React.Component<WidgetProps> {
                     unitString = unit;
                 }
             }
-            
-            const value =  this.statsData.statistics[index].value;
+
+            const value = this.statsData.statistics[index].value;
             numString = toExponential(value, 12);
             unitString = isFinite(value) ? unitString : "";
         }
 
-        return {num: numString, unit: unitString}
+        return {num: numString, unit: unitString};
     };
 
     exportData = () => {
         const frame = this.widgetStore.effectiveFrame;
         if (this.statsData && frame) {
-            const fileName = this.widgetStore.effectiveFrame.filename;
+            const fileName = frame.filename;
             const plotName = "statistics";
             const title = `# ${fileName} ${plotName}\n`;
 
             let regionInfo = "";
-            let regionId = this.widgetStore.effectiveRegionId;
+            const regionId = this.widgetStore.effectiveRegionId;
             if (regionId !== -1) {
-                const region = this.widgetStore.effectiveFrame.regionSet.regions.find(r => r.regionId === regionId);
-                if (region) {
-                    regionInfo += `# ${region.regionProperties}\n`;
-                    if (frame.validWcs) {
-                        regionInfo += `# ${frame.getRegionWcsProperties(region)}\n`;
-                    }
-                }
+                const regionProperties = frame.getRegionProperties(regionId);
+                regionProperties?.forEach(regionProperty => (regionInfo += `# ${regionProperty}\n`));
             } else {
-                regionInfo += "# full image\n"
+                regionInfo += "# full image\n";
             }
-            let channelInfo = (frame.channelInfo) ? `# channel: ${frame.spectralInfo.channel}\n` : "";
-            let stokesInfo = (frame.hasStokes) ? `# stokes: ${frame.stokesInfo[frame.requiredStokes]}\n` : ""; 
+            let channelInfo = frame.channelInfo ? `# channel: ${frame.spectralInfo.channel}\n` : "";
+            let stokesInfo = frame.hasStokes ? `# stokes: ${frame.stokesInfo[frame.requiredStokes]}\n` : "";
             let comment = `${channelInfo}${stokesInfo}${regionInfo}`;
 
             const header = "# Statistic\tValue\tUnit\n";
@@ -193,8 +187,8 @@ export class StatsComponent extends React.Component<WidgetProps> {
                 const index = this.statsData.statistics?.findIndex(s => s.statsType === type);
                 if (index >= 0 && index < this.statsData.statistics?.length) {
                     const value = this.getTableValue(index, type);
-                    value.unit = (value.unit === "") ? "N/A" : value.unit;
-                    rows += `${name.padEnd(12)}\t${value.num}\t${value.unit}\n`
+                    value.unit = value.unit === "" ? "N/A" : value.unit;
+                    rows += `${name.padEnd(12)}\t${value.num}\t${value.unit}\n`;
                 }
             });
 
@@ -216,40 +210,36 @@ export class StatsComponent extends React.Component<WidgetProps> {
                 const index = this.statsData.statistics?.findIndex(s => s.statsType === type);
                 if (index >= 0 && index < this.statsData.statistics.length) {
                     const value = this.getTableValue(index, type);
-                    rows.push((
+                    rows.push(
                         <tr key={type}>
                             <td style={{width: StatsComponent.NAME_COLUMN_WIDTH}}>{name}</td>
-                            <td style={{width: valueWidth}}>{value.num} {value.unit}</td>
+                            <td style={{width: valueWidth}}>
+                                {value.num} {value.unit}
+                            </td>
                         </tr>
-                    ));
+                    );
                 }
             });
 
             formContent = (
                 <HTMLTable>
                     <thead className={appStore.darkTheme ? "dark-theme" : ""}>
-                    <tr>
-                        <th style={{width: StatsComponent.NAME_COLUMN_WIDTH}}>Statistic</th>
-                        <th style={{width: valueWidth}}>Value</th>
-                    </tr>
+                        <tr>
+                            <th style={{width: StatsComponent.NAME_COLUMN_WIDTH}}>Statistic</th>
+                            <th style={{width: valueWidth}}>Value</th>
+                        </tr>
                     </thead>
-                    <tbody className={appStore.darkTheme ? "dark-theme" : ""}>
-                    {rows}
-                    </tbody>
+                    <tbody className={appStore.darkTheme ? "dark-theme" : ""}>{rows}</tbody>
                 </HTMLTable>
             );
 
             exportDataComponent = (
                 <div className="stats-export-data">
-                    <ToolbarComponent
-                        darkMode={appStore.darkTheme}
-                        visible={this.isMouseEntered}
-                        exportData={this.exportData}
-                    />
+                    <ToolbarComponent darkMode={appStore.darkTheme} visible={this.isMouseEntered} exportData={this.exportData} />
                 </div>
             );
         } else {
-            formContent = <NonIdealState icon={"folder-open"} title={"No stats data"} description={"Select a valid region from the dropdown"}/>;
+            formContent = <NonIdealState icon={"folder-open"} title={"No stats data"} description={"Select a valid region from the dropdown"} />;
         }
 
         let className = "stats-widget";
@@ -260,18 +250,13 @@ export class StatsComponent extends React.Component<WidgetProps> {
         return (
             <div className={className}>
                 <div className="stats-toolbar">
-                    <RegionSelectorComponent widgetStore={this.widgetStore}/>
+                    <RegionSelectorComponent widgetStore={this.widgetStore} />
                 </div>
-                <div 
-                    className="stats-display"
-                    onMouseEnter={this.onMouseEnter}
-                    onMouseLeave={this.onMouseLeave}
-                >
+                <div className="stats-display" onMouseEnter={this.onMouseEnter} onMouseLeave={this.onMouseLeave}>
                     {formContent}
                     {exportDataComponent}
                 </div>
-                <ReactResizeDetector handleWidth handleHeight onResize={this.onResize}>
-                </ReactResizeDetector>
+                <ReactResizeDetector handleWidth handleHeight onResize={this.onResize}></ReactResizeDetector>
             </div>
         );
     }

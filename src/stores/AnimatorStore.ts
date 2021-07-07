@@ -53,7 +53,7 @@ export class AnimatorStore {
         this.step = val;
     };
 
-    @action startAnimation = () => {
+    @action startAnimation = async () => {
         const appStore = AppStore.Instance;
         const preferenceStore = PreferenceStore.Instance;
         const frame = appStore.activeFrame;
@@ -95,13 +95,7 @@ export class AnimatorStore {
         // Calculate matched frames for the animation range
         const matchedFrames = new Map<number, CARTA.IMatchedFrameList>();
         for (const sibling of frame.spectralSiblings) {
-            const frameNumbers = getTransformedChannelList(
-                frame.wcsInfo3D,
-                sibling.wcsInfo3D,
-                preferenceStore.spectralMatchingType,
-                animationFrames.firstFrame.channel,
-                animationFrames.lastFrame.channel
-            );
+            const frameNumbers = getTransformedChannelList(frame.wcsInfo3D, sibling.wcsInfo3D, preferenceStore.spectralMatchingType, animationFrames.firstFrame.channel, animationFrames.lastFrame.channel);
             matchedFrames.set(sibling.frameInfo.fileId, {frameNumbers});
         }
 
@@ -118,14 +112,16 @@ export class AnimatorStore {
             matchedFrames: mapToObject(matchedFrames)
         };
 
-        appStore.backendService.startAnimation(animationMessage).subscribe(() => {
+        this.animationActive = true;
+
+        try {
+            await appStore.backendService.startAnimation(animationMessage);
+            appStore.tileService.setAnimationEnabled(true);
             console.log("Animation started successfully");
-        }, err => {
+        } catch (err) {
             console.log(err);
             appStore.tileService.setAnimationEnabled(false);
-        });
-        appStore.tileService.setAnimationEnabled(true);
-        this.animationActive = true;
+        }
 
         clearTimeout(this.stopHandle);
         this.stopHandle = setTimeout(this.stopAnimation, 1000 * 60 * preferenceStore.stopAnimationPlaybackMinutes);
@@ -167,7 +163,7 @@ export class AnimatorStore {
             frame.spectralSiblings.forEach(siblingFrame => {
                 updates.push({frame: siblingFrame, channel: siblingFrame.requiredChannel, stokes: siblingFrame.requiredStokes});
             });
-            appStore.throttledSetChannels(updates);
+            appStore.updateChannels(updates);
         }
     };
 
@@ -202,11 +198,13 @@ export class AnimatorStore {
         return this.animationActive && this.animationMode !== AnimationMode.FRAME;
     }
 
-    private genAnimationFrames = (frame: FrameStore): {
-        startFrame: CARTA.IAnimationFrame,
-        firstFrame: CARTA.IAnimationFrame,
-        lastFrame: CARTA.IAnimationFrame,
-        deltaFrame: CARTA.IAnimationFrame
+    private genAnimationFrames = (
+        frame: FrameStore
+    ): {
+        startFrame: CARTA.IAnimationFrame;
+        firstFrame: CARTA.IAnimationFrame;
+        lastFrame: CARTA.IAnimationFrame;
+        deltaFrame: CARTA.IAnimationFrame;
     } => {
         if (!frame) {
             return null;

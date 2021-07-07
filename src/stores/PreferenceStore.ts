@@ -28,6 +28,7 @@ export enum PreferenceKeys {
     RENDER_CONFIG_SCALING_GAMMA = "scalingGamma",
     RENDER_CONFIG_NAN_COLOR_HEX = "nanColorHex",
     RENDER_CONFIG_NAN_ALPHA = "nanAlpha",
+    RENDER_CONFIG_USE_SMOOTHED_BIAS_CONTRAST = "useSmoothedBiasContrast",
 
     CONTOUR_CONFIG_CONTOUR_GENERATOR_TYPE = "contourGeneratorType",
     CONTOUR_CONFIG_CONTOUR_SMOOTHING_MODE = "contourSmoothingMode",
@@ -42,6 +43,12 @@ export enum PreferenceKeys {
     WCS_OVERLAY_AST_GRID_VISIBLE = "astGridVisible",
     WCS_OVERLAY_AST_LABELS_VISIBLE = "astLabelsVisible",
     WCS_OVERLAY_WCS_TYPE = "wcsType",
+    WCS_OVERLAY_COLORBAR_VISIBLE = "colorbarVisible",
+    WCS_OVERLAY_COLORBAR_INTERACTIVE = "colorbarInteractive",
+    WCS_OVERLAY_COLORBAR_POSITION = "colorbarPosition",
+    WCS_OVERLAY_COLORBAR_WIDTH = "colorbarWidth",
+    WCS_OVERLAY_COLORBAR_TICKS_DENSITY = "colorbarTicksDensity",
+    WCS_OVERLAY_COLORBAR_LABEL_VISIBLE = "colorbarLabelVisible",
     WCS_OVERLAY_BEAM_VISIBLE = "beamVisible",
     WCS_OVERLAY_BEAM_COLOR = "beamColor",
     WCS_OVERLAY_BEAM_TYPE = "beamType",
@@ -69,13 +76,18 @@ export enum PreferenceKeys {
     LOG_EVENT = "logEventList",
 
     CATALOG_DISPLAYED_COLUMN_SIZE = "catalogDisplayedColumnSize",
-    CATALOG_TABLE_SEPARATOR_POSITION = "catalogTableSeparatorPosition"
+    CATALOG_TABLE_SEPARATOR_POSITION = "catalogTableSeparatorPosition",
+
+    PIXEL_GRID_VISIBLE = "pixelGridVisible",
+    PIXEL_GRID_COLOR = "pixelGridColor"
 }
 
 const DEFAULTS = {
     SILENT: {
         fileSortingString: "-date",
         fileFilteringType: FileFilteringType.Fuzzy,
+        pixelGridVisible: false,
+        pixelGridColor: "#FFFFFF"
     },
     GLOBAL: {
         theme: Theme.AUTO,
@@ -87,7 +99,7 @@ const DEFAULTS = {
         dragPanning: true,
         spectralMatchingType: SpectralType.VRAD,
         autoWCSMatching: WCSMatchingType.NONE,
-        transparentImageBackground: false,
+        transparentImageBackground: false
     },
     RENDER_CONFIG: {
         scaling: FrameScaling.LINEAR,
@@ -97,6 +109,7 @@ const DEFAULTS = {
         scalingGamma: 1,
         nanColorHex: "#137CBD",
         nanAlpha: 1,
+        useSmoothedBiasContrast: true
     },
     CONTOUR_CONFIG: {
         contourGeneratorType: ContourGeneratorType.StartStepMultiplier,
@@ -106,17 +119,23 @@ const DEFAULTS = {
         contourThickness: 1,
         contourColormapEnabled: false,
         contourColor: Colors.GREEN3,
-        contourColormap: "viridis",
+        contourColormap: "viridis"
     },
     WCS_OVERLAY: {
-        astColor: 4,
+        astColor: "auto-blue",
         astGridVisible: false,
         astLabelsVisible: true,
         wcsType: WCSType.AUTOMATIC,
+        colorbarVisible: true,
+        colorbarInteractive: true,
+        colorbarPosition: "right",
+        colorbarWidth: 15,
+        colorbarTicksDensity: 1,
+        colorbarLabelVisible: false,
         beamVisible: true,
-        beamColor: Colors.GRAY3,
+        beamColor: "auto-gray",
         beamType: BeamType.Open,
-        beamWidth: 1,
+        beamWidth: 1
     },
     REGION: {
         regionColor: "#2EE6D6",
@@ -239,6 +258,10 @@ export class PreferenceStore {
         return this.preferences.get(PreferenceKeys.RENDER_CONFIG_NAN_ALPHA) ?? DEFAULTS.RENDER_CONFIG.nanAlpha;
     }
 
+    @computed get useSmoothedBiasContrast(): boolean {
+        return this.preferences.get(PreferenceKeys.RENDER_CONFIG_USE_SMOOTHED_BIAS_CONTRAST) ?? DEFAULTS.RENDER_CONFIG.useSmoothedBiasContrast;
+    }
+
     // getters for Contour Config
     @computed get contourGeneratorType(): ContourGeneratorType {
         return this.preferences.get(PreferenceKeys.CONTOUR_CONFIG_CONTOUR_GENERATOR_TYPE) ?? DEFAULTS.CONTOUR_CONFIG.contourGeneratorType;
@@ -285,7 +308,7 @@ export class PreferenceStore {
     }
 
     // getters for WCS overlay
-    @computed get astColor(): number {
+    @computed get astColor(): string {
         return this.preferences.get(PreferenceKeys.WCS_OVERLAY_AST_COLOR) ?? DEFAULTS.WCS_OVERLAY.astColor;
     }
 
@@ -299,6 +322,30 @@ export class PreferenceStore {
 
     @computed get wcsType(): string {
         return this.preferences.get(PreferenceKeys.WCS_OVERLAY_WCS_TYPE) ?? DEFAULTS.WCS_OVERLAY.wcsType;
+    }
+
+    @computed get colorbarVisible(): boolean {
+        return this.preferences.get(PreferenceKeys.WCS_OVERLAY_COLORBAR_VISIBLE) ?? DEFAULTS.WCS_OVERLAY.colorbarVisible;
+    }
+
+    @computed get colorbarInteractive(): boolean {
+        return this.preferences.get(PreferenceKeys.WCS_OVERLAY_COLORBAR_INTERACTIVE) ?? DEFAULTS.WCS_OVERLAY.colorbarInteractive;
+    }
+
+    @computed get colorbarPosition(): string {
+        return this.preferences.get(PreferenceKeys.WCS_OVERLAY_COLORBAR_POSITION) ?? DEFAULTS.WCS_OVERLAY.colorbarPosition;
+    }
+
+    @computed get colorbarWidth(): number {
+        return this.preferences.get(PreferenceKeys.WCS_OVERLAY_COLORBAR_WIDTH) ?? DEFAULTS.WCS_OVERLAY.colorbarWidth;
+    }
+
+    @computed get colorbarTicksDensity(): number {
+        return this.preferences.get(PreferenceKeys.WCS_OVERLAY_COLORBAR_TICKS_DENSITY) ?? DEFAULTS.WCS_OVERLAY.colorbarTicksDensity;
+    }
+
+    @computed get colorbarLabelVisible(): boolean {
+        return this.preferences.get(PreferenceKeys.WCS_OVERLAY_COLORBAR_LABEL_VISIBLE) ?? DEFAULTS.WCS_OVERLAY.colorbarLabelVisible;
     }
 
     @computed get beamVisible(): boolean {
@@ -418,6 +465,14 @@ export class PreferenceStore {
         return this.preferences.get(PreferenceKeys.CATALOG_TABLE_SEPARATOR_POSITION) ?? DEFAULTS.CATALOG.catalogTableSeparatorPosition;
     }
 
+    @computed get pixelGridVisible(): boolean {
+        return this.preferences.get(PreferenceKeys.PIXEL_GRID_VISIBLE) ?? DEFAULTS.SILENT.pixelGridVisible;
+    }
+
+    @computed get pixelGridColor(): string {
+        return this.preferences.get(PreferenceKeys.PIXEL_GRID_COLOR) ?? DEFAULTS.SILENT.pixelGridColor;
+    }
+
     @action setPreference = async (key: PreferenceKeys, value: any) => {
         if (!key) {
             return false;
@@ -455,56 +510,86 @@ export class PreferenceStore {
 
     // reset functions
     @action resetSilentSettings = () => {
-        this.clearPreferences([PreferenceKeys.SILENT_FILE_SORTING_STRING, PreferenceKeys.SILENT_FILE_FILTERING_TYPE]);
+        this.clearPreferences([PreferenceKeys.SILENT_FILE_SORTING_STRING, PreferenceKeys.SILENT_FILE_FILTERING_TYPE, PreferenceKeys.PIXEL_GRID_VISIBLE, PreferenceKeys.PIXEL_GRID_COLOR]);
     };
 
     @action resetGlobalSettings = () => {
         this.clearPreferences([
-            PreferenceKeys.GLOBAL_THEME, PreferenceKeys.GLOBAL_AUTOLAUNCH, PreferenceKeys.GLOBAL_LAYOUT,
-            PreferenceKeys.GLOBAL_CURSOR_POSITION, PreferenceKeys.GLOBAL_ZOOM_MODE, PreferenceKeys.GLOBAL_ZOOM_POINT,
-            PreferenceKeys.GLOBAL_DRAG_PANNING, PreferenceKeys.GLOBAL_SPECTRAL_MATCHING_TYPE, PreferenceKeys.GLOBAL_AUTO_WCS_MATCHING,
+            PreferenceKeys.GLOBAL_THEME,
+            PreferenceKeys.GLOBAL_AUTOLAUNCH,
+            PreferenceKeys.GLOBAL_LAYOUT,
+            PreferenceKeys.GLOBAL_CURSOR_POSITION,
+            PreferenceKeys.GLOBAL_ZOOM_MODE,
+            PreferenceKeys.GLOBAL_ZOOM_POINT,
+            PreferenceKeys.GLOBAL_DRAG_PANNING,
+            PreferenceKeys.GLOBAL_SPECTRAL_MATCHING_TYPE,
+            PreferenceKeys.GLOBAL_AUTO_WCS_MATCHING,
             PreferenceKeys.GLOBAL_TRANSPARENT_IMAGE_BACKGROUND
         ]);
     };
 
     @action resetRenderConfigSettings = () => {
         this.clearPreferences([
-            PreferenceKeys.RENDER_CONFIG_COLORMAP, PreferenceKeys.RENDER_CONFIG_NAN_ALPHA, PreferenceKeys.RENDER_CONFIG_NAN_COLOR_HEX,
-            PreferenceKeys.RENDER_CONFIG_PERCENTILE, PreferenceKeys.RENDER_CONFIG_SCALING, PreferenceKeys.RENDER_CONFIG_SCALING_ALPHA,
-            PreferenceKeys.RENDER_CONFIG_SCALING_GAMMA
+            PreferenceKeys.RENDER_CONFIG_COLORMAP,
+            PreferenceKeys.RENDER_CONFIG_NAN_ALPHA,
+            PreferenceKeys.RENDER_CONFIG_NAN_COLOR_HEX,
+            PreferenceKeys.RENDER_CONFIG_PERCENTILE,
+            PreferenceKeys.RENDER_CONFIG_SCALING,
+            PreferenceKeys.RENDER_CONFIG_SCALING_ALPHA,
+            PreferenceKeys.RENDER_CONFIG_SCALING_GAMMA,
+            PreferenceKeys.RENDER_CONFIG_USE_SMOOTHED_BIAS_CONTRAST
         ]);
     };
 
     @action resetContourConfigSettings = () => {
         this.clearPreferences([
-            PreferenceKeys.CONTOUR_CONFIG_CONTOUR_COLOR, PreferenceKeys.CONTOUR_CONFIG_CONTOUR_COLORMAP, PreferenceKeys.CONTOUR_CONFIG_CONTOUR_COLORMAP_ENABLED,
-            PreferenceKeys.CONTOUR_CONFIG_CONTOUR_GENERATOR_TYPE, PreferenceKeys.CONTOUR_CONFIG_CONTOUR_NUM_LEVELS,
-            PreferenceKeys.CONTOUR_CONFIG_CONTOUR_SMOOTHING_FACTOR, PreferenceKeys.CONTOUR_CONFIG_CONTOUR_SMOOTHING_MODE,
+            PreferenceKeys.CONTOUR_CONFIG_CONTOUR_COLOR,
+            PreferenceKeys.CONTOUR_CONFIG_CONTOUR_COLORMAP,
+            PreferenceKeys.CONTOUR_CONFIG_CONTOUR_COLORMAP_ENABLED,
+            PreferenceKeys.CONTOUR_CONFIG_CONTOUR_GENERATOR_TYPE,
+            PreferenceKeys.CONTOUR_CONFIG_CONTOUR_NUM_LEVELS,
+            PreferenceKeys.CONTOUR_CONFIG_CONTOUR_SMOOTHING_FACTOR,
+            PreferenceKeys.CONTOUR_CONFIG_CONTOUR_SMOOTHING_MODE,
             PreferenceKeys.CONTOUR_CONFIG_CONTOUR_THICKNESS
         ]);
     };
 
     @action resetOverlayConfigSettings = () => {
         this.clearPreferences([
-            PreferenceKeys.WCS_OVERLAY_AST_COLOR, PreferenceKeys.WCS_OVERLAY_AST_GRID_VISIBLE, PreferenceKeys.WCS_OVERLAY_AST_LABELS_VISIBLE,
-            PreferenceKeys.WCS_OVERLAY_BEAM_COLOR, PreferenceKeys.WCS_OVERLAY_BEAM_TYPE, PreferenceKeys.WCS_OVERLAY_BEAM_VISIBLE,
-            PreferenceKeys.WCS_OVERLAY_BEAM_WIDTH, PreferenceKeys.WCS_OVERLAY_WCS_TYPE
+            PreferenceKeys.WCS_OVERLAY_AST_COLOR,
+            PreferenceKeys.WCS_OVERLAY_AST_GRID_VISIBLE,
+            PreferenceKeys.WCS_OVERLAY_AST_LABELS_VISIBLE,
+            PreferenceKeys.WCS_OVERLAY_COLORBAR_VISIBLE,
+            PreferenceKeys.WCS_OVERLAY_COLORBAR_INTERACTIVE,
+            PreferenceKeys.WCS_OVERLAY_COLORBAR_POSITION,
+            PreferenceKeys.WCS_OVERLAY_COLORBAR_WIDTH,
+            PreferenceKeys.WCS_OVERLAY_COLORBAR_TICKS_DENSITY,
+            PreferenceKeys.WCS_OVERLAY_COLORBAR_LABEL_VISIBLE,
+            PreferenceKeys.WCS_OVERLAY_BEAM_COLOR,
+            PreferenceKeys.WCS_OVERLAY_BEAM_TYPE,
+            PreferenceKeys.WCS_OVERLAY_BEAM_VISIBLE,
+            PreferenceKeys.WCS_OVERLAY_BEAM_WIDTH,
+            PreferenceKeys.WCS_OVERLAY_WCS_TYPE
         ]);
     };
 
     @action resetRegionSettings = () => {
-        this.clearPreferences([
-            PreferenceKeys.REGION_COLOR, PreferenceKeys.REGION_CREATION_MODE, PreferenceKeys.REGION_DASH_LENGTH,
-            PreferenceKeys.REGION_LINE_WIDTH, PreferenceKeys.REGION_TYPE, PreferenceKeys.REGION_SIZE
-        ]);
+        this.clearPreferences([PreferenceKeys.REGION_COLOR, PreferenceKeys.REGION_CREATION_MODE, PreferenceKeys.REGION_DASH_LENGTH, PreferenceKeys.REGION_LINE_WIDTH, PreferenceKeys.REGION_TYPE, PreferenceKeys.REGION_SIZE]);
     };
 
     @action resetPerformanceSettings = () => {
         this.clearPreferences([
-            PreferenceKeys.PERFORMANCE_ANIMATION_COMPRESSION_QUALITY, PreferenceKeys.PERFORMANCE_CONTOUR_CHUNK_SIZE, PreferenceKeys.PERFORMANCE_CONTOUR_COMPRESSION_LEVEL,
-            PreferenceKeys.PERFORMANCE_CONTOUR_CONTROL_MAP_WIDTH, PreferenceKeys.PERFORMANCE_CONTOUR_DECIMATION, PreferenceKeys.PERFORMANCE_GPU_TILE_CACHE,
-            PreferenceKeys.PERFORMANCE_IMAGE_COMPRESSION_QUALITY, PreferenceKeys.PERFORMANCE_LOW_BAND_WIDTH_MODE, PreferenceKeys.PERFORMANCE_STOP_ANIMATION_PLAYBACK_MINUTES,
-            PreferenceKeys.PERFORMANCE_STREAM_CONTOURS_WHILE_ZOOMING, PreferenceKeys.PERFORMANCE_SYSTEM_TILE_CACHE
+            PreferenceKeys.PERFORMANCE_ANIMATION_COMPRESSION_QUALITY,
+            PreferenceKeys.PERFORMANCE_CONTOUR_CHUNK_SIZE,
+            PreferenceKeys.PERFORMANCE_CONTOUR_COMPRESSION_LEVEL,
+            PreferenceKeys.PERFORMANCE_CONTOUR_CONTROL_MAP_WIDTH,
+            PreferenceKeys.PERFORMANCE_CONTOUR_DECIMATION,
+            PreferenceKeys.PERFORMANCE_GPU_TILE_CACHE,
+            PreferenceKeys.PERFORMANCE_IMAGE_COMPRESSION_QUALITY,
+            PreferenceKeys.PERFORMANCE_LOW_BAND_WIDTH_MODE,
+            PreferenceKeys.PERFORMANCE_STOP_ANIMATION_PLAYBACK_MINUTES,
+            PreferenceKeys.PERFORMANCE_STREAM_CONTOURS_WHILE_ZOOMING,
+            PreferenceKeys.PERFORMANCE_SYSTEM_TILE_CACHE
         ]);
     };
 
@@ -512,7 +597,7 @@ export class PreferenceStore {
         if (this.isSelectingAllLogEvents || this.isSelectingIndeterminateLogEvents) {
             this.resetLogEventSettings();
         } else {
-            Event.EVENT_TYPES.forEach((eventType) => this.setPreference(PreferenceKeys.LOG_EVENT, eventType));
+            Event.EVENT_TYPES.forEach(eventType => this.setPreference(PreferenceKeys.LOG_EVENT, eventType));
         }
     };
 
@@ -522,7 +607,7 @@ export class PreferenceStore {
 
     @action resetCatalogSettings = () => {
         this.clearPreferences([PreferenceKeys.CATALOG_DISPLAYED_COLUMN_SIZE, PreferenceKeys.CATALOG_TABLE_SEPARATOR_POSITION]);
-    }
+    };
 
     @action fetchPreferences = async () => {
         await this.upgradePreferences();
@@ -546,34 +631,75 @@ export class PreferenceStore {
 
             // Strings
             const stringKeys = [
-                PreferenceKeys.GLOBAL_THEME, PreferenceKeys.GLOBAL_LAYOUT, PreferenceKeys.GLOBAL_CURSOR_POSITION, PreferenceKeys.GLOBAL_ZOOM_MODE,
-                PreferenceKeys.GLOBAL_ZOOM_POINT, PreferenceKeys.GLOBAL_SPECTRAL_MATCHING_TYPE, PreferenceKeys.RENDER_CONFIG_COLORMAP, PreferenceKeys.RENDER_CONFIG_NAN_COLOR_HEX,
-                PreferenceKeys.CONTOUR_CONFIG_CONTOUR_GENERATOR_TYPE, PreferenceKeys.CONTOUR_CONFIG_CONTOUR_COLOR, PreferenceKeys.CONTOUR_CONFIG_CONTOUR_COLORMAP,
-                PreferenceKeys.WCS_OVERLAY_WCS_TYPE, PreferenceKeys.WCS_OVERLAY_BEAM_COLOR, PreferenceKeys.WCS_OVERLAY_BEAM_TYPE, PreferenceKeys.REGION_COLOR,
+                PreferenceKeys.GLOBAL_THEME,
+                PreferenceKeys.GLOBAL_LAYOUT,
+                PreferenceKeys.GLOBAL_CURSOR_POSITION,
+                PreferenceKeys.GLOBAL_ZOOM_MODE,
+                PreferenceKeys.GLOBAL_ZOOM_POINT,
+                PreferenceKeys.GLOBAL_SPECTRAL_MATCHING_TYPE,
+                PreferenceKeys.RENDER_CONFIG_COLORMAP,
+                PreferenceKeys.RENDER_CONFIG_NAN_COLOR_HEX,
+                PreferenceKeys.CONTOUR_CONFIG_CONTOUR_GENERATOR_TYPE,
+                PreferenceKeys.CONTOUR_CONFIG_CONTOUR_COLOR,
+                PreferenceKeys.CONTOUR_CONFIG_CONTOUR_COLORMAP,
+                PreferenceKeys.WCS_OVERLAY_WCS_TYPE,
+                PreferenceKeys.WCS_OVERLAY_COLORBAR_POSITION,
+                PreferenceKeys.WCS_OVERLAY_BEAM_COLOR,
+                PreferenceKeys.WCS_OVERLAY_BEAM_TYPE,
+                PreferenceKeys.REGION_COLOR,
                 PreferenceKeys.REGION_CREATION_MODE,
-                PreferenceKeys.CATALOG_TABLE_SEPARATOR_POSITION
+                PreferenceKeys.WCS_OVERLAY_AST_COLOR,
+                PreferenceKeys.CATALOG_TABLE_SEPARATOR_POSITION,
+                PreferenceKeys.PIXEL_GRID_COLOR
             ];
 
             const intKeys = [
-                PreferenceKeys.GLOBAL_AUTO_WCS_MATCHING, PreferenceKeys.RENDER_CONFIG_SCALING, PreferenceKeys.CONTOUR_CONFIG_CONTOUR_SMOOTHING_MODE,
-                PreferenceKeys.CONTOUR_CONFIG_CONTOUR_SMOOTHING_FACTOR, PreferenceKeys.CONTOUR_CONFIG_CONTOUR_NUM_LEVELS, PreferenceKeys.WCS_OVERLAY_AST_COLOR,
-                PreferenceKeys.REGION_DASH_LENGTH, PreferenceKeys.REGION_TYPE, PreferenceKeys.PERFORMANCE_IMAGE_COMPRESSION_QUALITY, PreferenceKeys.PERFORMANCE_ANIMATION_COMPRESSION_QUALITY,
-                PreferenceKeys.PERFORMANCE_GPU_TILE_CACHE, PreferenceKeys.PERFORMANCE_SYSTEM_TILE_CACHE, PreferenceKeys.PERFORMANCE_CONTOUR_DECIMATION,
-                PreferenceKeys.PERFORMANCE_CONTOUR_COMPRESSION_LEVEL, PreferenceKeys.PERFORMANCE_CONTOUR_CHUNK_SIZE, PreferenceKeys.PERFORMANCE_CONTOUR_CONTROL_MAP_WIDTH,
+                PreferenceKeys.GLOBAL_AUTO_WCS_MATCHING,
+                PreferenceKeys.RENDER_CONFIG_SCALING,
+                PreferenceKeys.CONTOUR_CONFIG_CONTOUR_SMOOTHING_MODE,
+                PreferenceKeys.CONTOUR_CONFIG_CONTOUR_SMOOTHING_FACTOR,
+                PreferenceKeys.CONTOUR_CONFIG_CONTOUR_NUM_LEVELS,
+                PreferenceKeys.REGION_DASH_LENGTH,
+                PreferenceKeys.REGION_TYPE,
+                PreferenceKeys.PERFORMANCE_IMAGE_COMPRESSION_QUALITY,
+                PreferenceKeys.PERFORMANCE_ANIMATION_COMPRESSION_QUALITY,
+                PreferenceKeys.PERFORMANCE_GPU_TILE_CACHE,
+                PreferenceKeys.PERFORMANCE_SYSTEM_TILE_CACHE,
+                PreferenceKeys.PERFORMANCE_CONTOUR_DECIMATION,
+                PreferenceKeys.PERFORMANCE_CONTOUR_COMPRESSION_LEVEL,
+                PreferenceKeys.PERFORMANCE_CONTOUR_CHUNK_SIZE,
+                PreferenceKeys.PERFORMANCE_CONTOUR_CONTROL_MAP_WIDTH,
                 PreferenceKeys.PERFORMANCE_STOP_ANIMATION_PLAYBACK_MINUTES,
                 PreferenceKeys.CATALOG_DISPLAYED_COLUMN_SIZE
             ];
 
             const numberKeys = [
-                PreferenceKeys.RENDER_CONFIG_PERCENTILE, PreferenceKeys.RENDER_CONFIG_SCALING_ALPHA, PreferenceKeys.RENDER_CONFIG_SCALING_GAMMA,
-                PreferenceKeys.RENDER_CONFIG_NAN_ALPHA, PreferenceKeys.CONTOUR_CONFIG_CONTOUR_THICKNESS, PreferenceKeys.WCS_OVERLAY_BEAM_WIDTH,
-                PreferenceKeys.REGION_LINE_WIDTH,
+                PreferenceKeys.RENDER_CONFIG_PERCENTILE,
+                PreferenceKeys.RENDER_CONFIG_SCALING_ALPHA,
+                PreferenceKeys.RENDER_CONFIG_SCALING_GAMMA,
+                PreferenceKeys.RENDER_CONFIG_NAN_ALPHA,
+                PreferenceKeys.CONTOUR_CONFIG_CONTOUR_THICKNESS,
+                PreferenceKeys.WCS_OVERLAY_COLORBAR_WIDTH,
+                PreferenceKeys.WCS_OVERLAY_COLORBAR_TICKS_DENSITY,
+                PreferenceKeys.WCS_OVERLAY_BEAM_WIDTH,
+                PreferenceKeys.REGION_LINE_WIDTH
             ];
 
             const booleanKeys = [
-                PreferenceKeys.GLOBAL_AUTOLAUNCH, PreferenceKeys.GLOBAL_DRAG_PANNING, PreferenceKeys.GLOBAL_TRANSPARENT_IMAGE_BACKGROUND, PreferenceKeys.CONTOUR_CONFIG_CONTOUR_COLORMAP_ENABLED,
-                PreferenceKeys.WCS_OVERLAY_AST_GRID_VISIBLE, PreferenceKeys.WCS_OVERLAY_AST_LABELS_VISIBLE, PreferenceKeys.WCS_OVERLAY_BEAM_VISIBLE,
-                PreferenceKeys.PERFORMANCE_STREAM_CONTOURS_WHILE_ZOOMING, PreferenceKeys.PERFORMANCE_LOW_BAND_WIDTH_MODE
+                PreferenceKeys.GLOBAL_AUTOLAUNCH,
+                PreferenceKeys.GLOBAL_DRAG_PANNING,
+                PreferenceKeys.GLOBAL_TRANSPARENT_IMAGE_BACKGROUND,
+                PreferenceKeys.RENDER_CONFIG_USE_SMOOTHED_BIAS_CONTRAST,
+                PreferenceKeys.CONTOUR_CONFIG_CONTOUR_COLORMAP_ENABLED,
+                PreferenceKeys.WCS_OVERLAY_AST_GRID_VISIBLE,
+                PreferenceKeys.WCS_OVERLAY_AST_LABELS_VISIBLE,
+                PreferenceKeys.WCS_OVERLAY_COLORBAR_VISIBLE,
+                PreferenceKeys.WCS_OVERLAY_COLORBAR_INTERACTIVE,
+                PreferenceKeys.WCS_OVERLAY_COLORBAR_LABEL_VISIBLE,
+                PreferenceKeys.WCS_OVERLAY_BEAM_VISIBLE,
+                PreferenceKeys.PERFORMANCE_STREAM_CONTOURS_WHILE_ZOOMING,
+                PreferenceKeys.PERFORMANCE_LOW_BAND_WIDTH_MODE,
+                PreferenceKeys.PIXEL_GRID_VISIBLE
             ];
 
             const preferenceObject = {};
