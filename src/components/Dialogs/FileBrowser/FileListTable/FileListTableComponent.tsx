@@ -1,23 +1,24 @@
 import * as React from "react";
-import {action, autorun, computed, observable} from "mobx";
+import {action, autorun, computed, makeObservable, observable, runInAction} from "mobx";
 import {observer} from "mobx-react";
 import {Cell, Column, ColumnHeaderCell, Regions, RenderMode, SelectionModes, Table, TableLoadingOption} from "@blueprintjs/table";
 import {IRegion} from "@blueprintjs/table/src/regions";
 import {Icon, Label, NonIdealState} from "@blueprintjs/core";
 import globToRegExp from "glob-to-regexp";
-import * as moment from "moment";
+import moment from "moment";
+import FuzzySearch from "fuzzy-search";
 import {CARTA} from "carta-protobuf";
-import {BrowserMode, SortingConfig} from "stores";
+import {BrowserMode, FileFilteringType, ISelectedFile} from "stores";
 import {toFixed} from "utilities";
-import "./FileListTableComponent.css";
+import "./FileListTableComponent.scss";
 
-interface FileEntry {
+interface FileEntry extends ISelectedFile {
     filename: string;
-    typeInfo?: { type: string, description: string };
+    typeInfo?: {type: string; description: string};
     isDirectory?: boolean;
     size?: number;
     date?: number;
-    file?: CARTA.IFileInfo | CARTA.ICatalogFileInfo;
+    fileInfo?: CARTA.IFileInfo | CARTA.ICatalogFileInfo;
     hdu?: string;
 }
 
@@ -27,39 +28,41 @@ export interface FileListTableComponentProps {
     listResponse: CARTA.IFileListResponse | CARTA.ICatalogListResponse;
     selectedFile: CARTA.IFileInfo | CARTA.ICatalogFileInfo;
     selectedHDU: string;
+    filterType: FileFilteringType;
     filterString?: string;
-    sortingConfig?: SortingConfig;
+    sortingString?: string;
     fileBrowserMode: BrowserMode;
     onSortingChanged: (columnName: string, direction: number) => void;
-    onSortingCleared: () => void;
-    onFileClicked: (file: CARTA.IFileInfo | CARTA.ICatalogFileInfo, hdu?: string) => void;
-    onFileDoubleClicked: (file: CARTA.IFileInfo | CARTA.ICatalogFileInfo, hdu?: string) => void;
+    onFileClicked: (file: ISelectedFile) => void;
+    onSelectionChanged: (selectedFiles: ISelectedFile[]) => void;
+    onFileDoubleClicked: (file: ISelectedFile) => void;
     onFolderClicked: (folder: string) => void;
 }
 
 @observer
 export class FileListTableComponent extends React.Component<FileListTableComponentProps> {
-    @observable selectedRegion: IRegion[];
+    @observable selectedRegions: IRegion[];
     @observable columnWidths = [350, 80, 90, 95];
 
     private static readonly RowHeight = 22;
     private tableRef: Table;
     private cachedFilterString: string;
-    private cachedSortingConfig: SortingConfig;
+    private cachedSortingString: string;
     private cachedFileResponse: CARTA.IFileListResponse | CARTA.ICatalogListResponse;
+    private rowPivotIndex: number = -1;
 
-    private static readonly FileTypeMap = new Map<CARTA.FileType, { type: string, description: string }>([
+    private static readonly FileTypeMap = new Map<CARTA.FileType, {type: string; description: string}>([
         [CARTA.FileType.CASA, {type: "CASA", description: "CASA Image"}],
         [CARTA.FileType.CRTF, {type: "CRTF", description: "CASA Region Text Format"}],
         [CARTA.FileType.DS9_REG, {type: "DS9", description: "DS9 Region Format"}],
         [CARTA.FileType.FITS, {type: "FITS", description: "Flexible Image Transport System"}],
         [CARTA.FileType.HDF5, {type: "HDF5", description: "HDF5 File (IDIA Schema)"}],
-        [CARTA.FileType.MIRIAD, {type: "Miriad", description: "Miriad Image"}],
+        [CARTA.FileType.MIRIAD, {type: "Miriad", description: "Miriad Image"}]
     ]);
 
-    private static readonly CatalogFileTypeMap = new Map<CARTA.CatalogFileType, { type: string, description: string }>([
+    private static readonly CatalogFileTypeMap = new Map<CARTA.CatalogFileType, {type: string; description: string}>([
         [CARTA.CatalogFileType.FITSTable, {type: "FITS", description: "Flexible Image Transport System"}],
-        [CARTA.CatalogFileType.VOTable, {type: "VOTable", description: "XML-Based Table Format"}],
+        [CARTA.CatalogFileType.VOTable, {type: "VOTable", description: "XML-Based Table Format"}]
     ]);
 
     private static GetFileTypeDisplay(type: CARTA.FileType) {
@@ -96,21 +99,27 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
         let filteredFiles = fileResponse?.files?.slice();
 
         const filterString = this.props.filterString;
+        const filterType = this.props.filterType;
         if (filterString) {
             try {
                 let regex: RegExp;
-                if (filterString.startsWith("/") && filterString.endsWith("/")) {
-                    // Strict regex search is case-sensitive
-                    regex = RegExp(filterString.substring(1, filterString.length - 1));
-                    filteredSubdirectories = filteredSubdirectories?.filter(value => value.match(regex));
-                    // @ts-ignore
-                    filteredFiles = filteredFiles?.filter(file => file.name.match(regex));
-                } else {
+                if (filterType === FileFilteringType.Fuzzy) {
+                    const folderSearcher = new FuzzySearch(filteredSubdirectories, ["name"]);
+                    filteredSubdirectories = folderSearcher.search(filterString);
+                    const fileSearcher = new FuzzySearch(filteredFiles, ["name"]);
+                    filteredFiles = fileSearcher.search(filterString);
+                } else if (filterType === FileFilteringType.Unix) {
                     // glob search case-insensitive
                     regex = RegExp(globToRegExp(filterString.toLowerCase()));
-                    filteredSubdirectories = filteredSubdirectories?.filter(value => value.toLowerCase().match(regex));
+                    filteredSubdirectories = filteredSubdirectories?.filter(info => info.name.toLowerCase().match(regex));
                     // @ts-ignore
                     filteredFiles = filteredFiles?.filter(file => file.name.toLowerCase().match(regex));
+                } else {
+                    // Strict regex search is case-sensitive
+                    regex = RegExp(filterString);
+                    filteredSubdirectories = filteredSubdirectories?.filter(info => info.name.match(regex));
+                    // @ts-ignore
+                    filteredFiles = filteredFiles?.filter(file => file.name.match(regex));
                 }
             } catch (e) {
                 if (e.name !== "SyntaxError") {
@@ -120,14 +129,27 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
         }
 
         const entries: FileEntry[] = [];
-        const sortingConfig = this.props.sortingConfig;
+        const sortingConfig = {direction: this.props.sortingString.startsWith("+") ? 1 : -1, columnName: this.props.sortingString.substring(1).toLowerCase()};
         if (filteredSubdirectories && filteredSubdirectories.length) {
-            if (sortingConfig?.columnName === "Filename") {
-                filteredSubdirectories.sort((a, b) => sortingConfig.direction * (a.toLowerCase() < b.toLowerCase() ? -1 : 1));
+            switch (sortingConfig?.columnName) {
+                case "filename":
+                    filteredSubdirectories.sort((a, b) => sortingConfig.direction * (a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1));
+                    break;
+                case "size":
+                    filteredSubdirectories.sort((a, b) => sortingConfig.direction * (a.itemCount < b.itemCount ? -1 : 1));
+                    break;
+                case "date":
+                    filteredSubdirectories.sort((a, b) => sortingConfig.direction * (a.date < b.date ? -1 : 1));
+                    break;
+                default:
+                    break;
             }
+
             for (const directory of filteredSubdirectories) {
                 entries.push({
-                    filename: directory,
+                    filename: directory.name,
+                    size: directory.itemCount > 0 ? directory.itemCount : undefined,
+                    date: directory.date as number,
                     isDirectory: true
                 });
             }
@@ -135,16 +157,16 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
 
         if (filteredFiles && filteredFiles.length) {
             switch (sortingConfig?.columnName) {
-                case "Filename":
+                case "filename":
                     filteredFiles.sort((a, b) => sortingConfig.direction * (a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1));
                     break;
-                case "Type":
+                case "type":
                     filteredFiles.sort((a, b) => sortingConfig.direction * (a.type < b.type ? -1 : 1));
                     break;
-                case "Size":
+                case "size":
                     filteredFiles.sort((a, b) => sortingConfig.direction * (a.size < b.size ? -1 : 1));
                     break;
-                case "Date":
+                case "date":
                     filteredFiles.sort((a, b) => sortingConfig.direction * (a.date < b.date ? -1 : 1));
                     break;
                 default:
@@ -158,7 +180,7 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
                         typeInfo: FileListTableComponent.GeCatalogFileTypeDisplay(file.type),
                         size: file.fileSize as number,
                         date: file.date as number,
-                        file
+                        fileInfo: file
                     });
                 }
             } else if (fileBrowserMode === BrowserMode.File) {
@@ -170,7 +192,7 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
                             typeInfo: FileListTableComponent.GetFileTypeDisplay(file.type),
                             size: file.size as number,
                             date: file.date as number,
-                            file,
+                            fileInfo: file,
                             hdu
                         });
                     }
@@ -182,7 +204,7 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
                         typeInfo: FileListTableComponent.GetFileTypeDisplay(file.type),
                         size: file.size as number,
                         date: file.date as number,
-                        file
+                        fileInfo: file
                     });
                 }
             }
@@ -190,19 +212,40 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
         return entries;
     }
 
+    @computed get selectedFiles(): ISelectedFile[] {
+        if (!this.tableEntries?.length || !this.selectedRegions?.length) {
+            return [];
+        }
+        const files = [];
+        for (const selection of this.selectedRegions) {
+            for (let i = selection.rows[0]; i <= selection.rows[1]; i++) {
+                if (i >= 0 && i < this.tableEntries.length) {
+                    const f = this.tableEntries[i];
+                    files.push(f);
+                }
+            }
+        }
+        return files;
+    }
+
     constructor(props: FileListTableComponentProps) {
         super(props);
+        makeObservable(this);
 
         // Automatically scroll to the top of the table when a new file response is received, or when filtering/sorting changes
         autorun(() => {
             const fileResponse = this.props.listResponse;
-            const sortingConfig = this.props.sortingConfig;
+            const sortingString = this.props.sortingString;
             const filterString = this.props.filterString;
 
-            if (fileResponse !== this.cachedFileResponse || sortingConfig !== this.cachedSortingConfig || filterString !== this.cachedFilterString) {
-                this.cachedSortingConfig = sortingConfig;
+            if (fileResponse !== this.cachedFileResponse || sortingString !== this.cachedSortingString || filterString !== this.cachedFilterString) {
+                this.cachedSortingString = sortingString;
                 this.cachedFilterString = filterString;
                 this.cachedFileResponse = fileResponse;
+                runInAction(() => (this.selectedRegions = []));
+                this.rowPivotIndex = -1;
+                this.props.onSelectionChanged([]);
+
                 setTimeout(() => this.tableRef?.scrollToRegion(Regions.row(0, 0)), 20);
             }
         });
@@ -212,10 +255,14 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
         if (entry) {
             if (entry.isDirectory) {
                 this.props.onFolderClicked(entry.filename);
-                this.selectedRegion = undefined;
+                this.selectedRegions = undefined;
+                this.rowPivotIndex = -1;
+                this.props.onSelectionChanged([]);
             } else {
-                this.props.onFileClicked(entry.file, entry.hdu);
-                this.selectedRegion = [Regions.row(index)];
+                this.props.onFileClicked(entry);
+                this.selectedRegions = [Regions.row(index)];
+                this.rowPivotIndex = index;
+                this.props.onSelectionChanged(this.selectedFiles);
             }
         }
     };
@@ -227,8 +274,8 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
     };
 
     private renderColumnHeader = (name: string, index?: number) => {
-        const sortingConfig = this.props.sortingConfig;
-        const sortColumn = name === sortingConfig?.columnName;
+        const sortingConfig = {direction: this.props.sortingString.startsWith("+") ? 1 : -1, columnName: this.props.sortingString.substring(1).toLowerCase()};
+        const sortColumn = name.toLowerCase() === sortingConfig?.columnName;
         const sortDesc = sortingConfig?.direction < 0;
 
         const nameRenderer = () => {
@@ -236,7 +283,7 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
                 return (
                     <div className="sort-label" onClick={() => this.props.onSortingChanged(name, -sortingConfig.direction)}>
                         <Label className="bp3-inline label">
-                            <Icon className="sort-icon" icon={sortDesc ? "sort-desc" : "sort-asc"}/>
+                            <Icon className="sort-icon" icon={sortDesc ? "sort-desc" : "sort-asc"} />
                             {name}
                         </Label>
                     </div>
@@ -245,27 +292,27 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
                 return (
                     <div className="sort-label" onClick={() => this.props.onSortingChanged(name, 1)}>
                         <Label className="bp3-inline label">
-                            <Icon className="sort-icon inactive" icon="sort"/>
+                            <Icon className="sort-icon inactive" icon="sort" />
                             {name}
                         </Label>
                     </div>
                 );
             }
         };
-        return <ColumnHeaderCell className={"column-name"} nameRenderer={nameRenderer}/>;
+        return <ColumnHeaderCell className={"column-name"} nameRenderer={nameRenderer} />;
     };
 
     private renderFilenames = (rowIndex: number) => {
         const entry = this.tableEntries[rowIndex];
+        if (!entry) {
+            return <Cell loading={true} />;
+        }
         return (
-            <Cell className="filename-cell" tooltip={entry?.filename}>
+            <Cell className={entry.isDirectory ? "folder-cell" : "filename-cell"} tooltip={entry?.filename}>
                 <React.Fragment>
-                    <div
-                        onClick={() => this.handleEntryClicked(entry, rowIndex)}
-                        onDoubleClick={() => this.handleEntryDoubleClicked(entry)}
-                    >
-                        {entry?.isDirectory && <Icon icon="folder-close"/>}
-                        {entry?.filename}
+                    <div onClick={event => this.handleEntryClicked(event, entry, rowIndex)} onDoubleClick={() => this.handleEntryDoubleClicked(entry)}>
+                        {entry?.isDirectory && <Icon icon="folder-close" />}
+                        <span className="cell-text">{entry?.filename}</span>
                     </div>
                 </React.Fragment>
             </Cell>
@@ -274,13 +321,13 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
 
     private renderTypes = (rowIndex: number) => {
         const entry = this.tableEntries[rowIndex];
+        if (!entry) {
+            return <Cell loading={true} />;
+        }
         return (
             <Cell tooltip={entry.typeInfo?.description}>
                 <React.Fragment>
-                    <div
-                        onClick={() => this.handleEntryClicked(entry, rowIndex)}
-                        onDoubleClick={() => this.handleEntryDoubleClicked(entry)}
-                    >
+                    <div onClick={event => this.handleEntryClicked(event, entry, rowIndex)} onDoubleClick={() => this.handleEntryDoubleClicked(entry)}>
                         {entry.typeInfo?.type}
                     </div>
                 </React.Fragment>
@@ -290,15 +337,16 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
 
     private renderSizes = (rowIndex: number) => {
         const entry = this.tableEntries[rowIndex];
+        if (!entry) {
+            return <Cell loading={true} />;
+        }
         const sizeInBytes = entry?.size;
         return (
             <Cell>
                 <React.Fragment>
-                    <div
-                        onClick={() => this.handleEntryClicked(entry, rowIndex)}
-                        onDoubleClick={() => this.handleEntryDoubleClicked(entry)}
-                    >
-                        {isFinite(sizeInBytes) && FileListTableComponent.GetFileSizeDisplay(sizeInBytes)}
+                    <div onClick={event => this.handleEntryClicked(event, entry, rowIndex)} onDoubleClick={() => this.handleEntryDoubleClicked(entry)}>
+                        {isFinite(sizeInBytes) && !entry.isDirectory && FileListTableComponent.GetFileSizeDisplay(sizeInBytes)}
+                        {isFinite(sizeInBytes) && entry.isDirectory && `${sizeInBytes} items`}
                     </div>
                 </React.Fragment>
             </Cell>
@@ -307,12 +355,15 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
 
     private renderDates = (rowIndex: number) => {
         const entry = this.tableEntries[rowIndex];
-        const unixDate = entry?.date;
+        if (!entry) {
+            return <Cell loading={true} />;
+        }
 
+        const unixDate = entry.date;
         let dateString: string;
         if (unixDate > 0) {
             const t = moment.unix(unixDate);
-            const isToday = moment(0, "HH").diff(t, "days") === 0;
+            const isToday = moment(0, "HH").diff(t) <= 0;
             if (isToday) {
                 dateString = t.format("HH:mm");
             } else {
@@ -323,10 +374,7 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
         return (
             <Cell className="time-cell">
                 <React.Fragment>
-                    <div
-                        onClick={() => this.handleEntryClicked(entry, rowIndex)}
-                        onDoubleClick={() => this.handleEntryDoubleClicked(entry)}
-                    >
+                    <div onClick={event => this.handleEntryClicked(event, entry, rowIndex)} onDoubleClick={() => this.handleEntryDoubleClicked(entry)}>
                         {dateString}
                     </div>
                 </React.Fragment>
@@ -335,27 +383,58 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
     };
 
     private handleEntryDoubleClicked = (entry: FileEntry) => {
-        if (entry.isDirectory) {
+        if (entry?.isDirectory) {
             return;
         }
-        this.props.onFileDoubleClicked(entry.file, entry.hdu);
+        this.props.onFileDoubleClicked(entry);
     };
 
-    private handleEntryClicked = (entry: FileEntry, index) => {
+    @action private handleEntryClicked = (event: React.MouseEvent, entry: FileEntry, index: number) => {
         if (entry) {
             if (entry.isDirectory) {
                 this.props.onFolderClicked(entry.filename);
-                this.selectedRegion = [];
+                this.selectedRegions = [];
+                this.rowPivotIndex = -1;
             } else {
-                this.props.onFileClicked(entry.file, entry.hdu);
-                this.selectedRegion = [Regions.row(index)];
+                const isCtrlPressed = event.ctrlKey || event.metaKey;
+                if (isCtrlPressed && this.selectedRegions.length) {
+                    const currentRow = Regions.row(index);
+                    const rowIndex = Regions.findMatchingRegion(this.selectedRegions, currentRow);
+                    if (rowIndex === -1) {
+                        this.selectedRegions.push(currentRow);
+                        // Generate new array in order to trigger re-render
+                        this.selectedRegions = this.selectedRegions.slice();
+                    } else {
+                        this.selectedRegions = this.selectedRegions.filter(r => r !== this.selectedRegions[rowIndex]);
+                        // Prevent deselection of all files
+                        if (!this.selectedRegions.length) {
+                            this.selectedRegions = [Regions.row(index)];
+                        }
+                    }
+                } else if (event.shiftKey && this.selectedRegions.length) {
+                    const range = Regions.row(this.rowPivotIndex, index);
+                    this.selectedRegions = [];
+                    for (let i = range.rows[0]; i <= range.rows[1]; i++) {
+                        this.selectedRegions.push(Regions.row(i));
+                    }
+                } else {
+                    this.selectedRegions = [Regions.row(index)];
+                    this.rowPivotIndex = index;
+                }
+                if (this.selectedRegions?.length === 1) {
+                    this.props.onFileClicked(this.tableEntries[this.selectedRegions[0].rows[0]]);
+                }
             }
         }
+        this.props.onSelectionChanged(this.selectedFiles);
     };
 
     render() {
         const fileResponse = this.props.listResponse;
-        const sortingConfig = this.props.sortingConfig;
+        // Dummy variable to trigger re-render on sorting change
+        // TODO: is this needed?
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const sortingConfig = this.props.sortingString;
 
         const classes = ["browser-table"];
         if (this.props.darkTheme) {
@@ -365,15 +444,14 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
         const entryCount = this.tableEntries.length;
         const unfilteredEntryCount = (fileResponse?.files?.length || 0) + (fileResponse?.subdirectories?.length || 0);
         if (!unfilteredEntryCount) {
-            return <NonIdealState icon="folder-open" title="Empty folder" description="There are no files or subdirectories in this folder"/>;
+            return <NonIdealState icon="folder-open" title="Empty folder" description="There are no files or subdirectories in this folder" />;
         } else if (!entryCount) {
-            return <NonIdealState icon="search" title="No results" description="There are no files or subdirectories matching the filter expression"/>;
-
+            return <NonIdealState icon="search" title="No results" description="There are no files or subdirectories matching the filter expression" />;
         }
 
         return (
             <Table
-                ref={ref => this.tableRef = ref}
+                ref={ref => (this.tableRef = ref)}
                 className={classes.join(" ")}
                 enableRowReordering={false}
                 renderMode={RenderMode.NONE}
@@ -381,19 +459,19 @@ export class FileListTableComponent extends React.Component<FileListTableCompone
                 enableGhostCells={false}
                 columnWidths={this.columnWidths}
                 minColumnWidth={80}
-                enableMultipleSelection={false}
+                enableMultipleSelection={true}
                 enableRowResizing={false}
                 defaultRowHeight={FileListTableComponent.RowHeight}
                 onColumnWidthChanged={this.handleColumnWidthChanged}
-                selectedRegions={this.selectedRegion}
+                selectedRegions={this.selectedRegions}
                 enableRowHeader={false}
                 numRows={this.tableEntries.length}
                 loadingOptions={this.props.loading ? [TableLoadingOption.CELLS] : []}
             >
-                <Column name="Filename" columnHeaderCellRenderer={() => this.renderColumnHeader("Filename")} cellRenderer={this.renderFilenames}/>
-                <Column name="Type" columnHeaderCellRenderer={() => this.renderColumnHeader("Type")} cellRenderer={this.renderTypes}/>
-                <Column name="Size" columnHeaderCellRenderer={() => this.renderColumnHeader("Size")} cellRenderer={this.renderSizes}/>
-                <Column name="Date" columnHeaderCellRenderer={() => this.renderColumnHeader("Date")} cellRenderer={this.renderDates}/>
+                <Column name="Filename" columnHeaderCellRenderer={() => this.renderColumnHeader("Filename")} cellRenderer={this.renderFilenames} />
+                <Column name="Type" columnHeaderCellRenderer={() => this.renderColumnHeader("Type")} cellRenderer={this.renderTypes} />
+                <Column name="Size" columnHeaderCellRenderer={() => this.renderColumnHeader("Size")} cellRenderer={this.renderSizes} />
+                <Column name="Date" columnHeaderCellRenderer={() => this.renderColumnHeader("Date")} cellRenderer={this.renderDates} />
             </Table>
         );
     }

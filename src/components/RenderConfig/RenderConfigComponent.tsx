@@ -1,24 +1,27 @@
 import * as React from "react";
 import * as _ from "lodash";
 import ReactResizeDetector from "react-resize-detector";
-import {action, autorun, computed, observable} from "mobx";
+import {action, autorun, computed, makeObservable, observable} from "mobx";
 import {observer} from "mobx-react";
-import {Button, ButtonGroup, FormGroup, HTMLSelect, IOptionProps, NonIdealState, NumericInput, Colors} from "@blueprintjs/core";
+import {Button, ButtonGroup, FormGroup, HTMLSelect, IOptionProps, NonIdealState, Colors} from "@blueprintjs/core";
 import {CARTA} from "carta-protobuf";
+import {HistogramConfigComponent} from "./HistogramConfigComponent/HistogramConfigComponent";
 import {ColormapConfigComponent} from "./ColormapConfigComponent/ColormapConfigComponent";
-import {LinePlotComponent, LinePlotComponentProps, PlotType, ProfilerInfoComponent} from "components/Shared";
+import {MultiPlotProps} from "../Shared/LinePlot/PlotContainer/PlotContainerComponent";
+import {LinePlotComponent, LinePlotComponentProps, PlotType, ProfilerInfoComponent, SafeNumericInput} from "components/Shared";
 import {TaskProgressDialogComponent} from "components/Dialogs";
 import {RenderConfigWidgetStore} from "stores/widgets";
-import {AnimationState, FrameScaling, FrameStore, RenderConfigStore, WidgetConfig, WidgetProps, HelpType, AlertStore, LogStore, AppStore, AnimatorStore, WidgetsStore} from "stores";
+import {FrameStore, RenderConfigStore, DefaultWidgetConfig, WidgetProps, HelpType, AppStore, WidgetsStore} from "stores";
 import {Point2D} from "models";
-import {clamp, toExponential, toFixed} from "utilities";
-import "./RenderConfigComponent.css";
+import {clamp, toExponential, toFixed, getColorForTheme, scaleValue} from "utilities";
+import "./RenderConfigComponent.scss";
 
 const KEYCODE_ENTER = 13;
+const COLORSCALE_LENGTH = 2048;
 
 @observer
 export class RenderConfigComponent extends React.Component<WidgetProps> {
-    public static get WIDGET_CONFIG(): WidgetConfig {
+    public static get WIDGET_CONFIG(): DefaultWidgetConfig {
         return {
             id: "render-config",
             type: "render-config",
@@ -50,7 +53,7 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
         return new RenderConfigWidgetStore();
     }
 
-    @computed get plotData(): { values: Array<Point2D>, xMin: number, xMax: number, yMin: number, yMax: number } {
+    @computed get plotData(): {values: Array<Point2D>; xMin: number; xMax: number; yMin: number; yMax: number} {
         const frame = AppStore.Instance.activeFrame;
         if (frame && frame.renderConfig.histogram && frame.renderConfig.histogram.bins && frame.renderConfig.histogram.bins.length) {
             const histogram = frame.renderConfig.histogram;
@@ -70,7 +73,7 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
             let yMin = histogram.bins[minIndex];
             let yMax = yMin;
 
-            let values: Array<{ x: number, y: number }>;
+            let values: Array<{x: number; y: number}>;
             const N = maxIndex - minIndex;
             if (N > 0 && !isNaN(N)) {
                 values = new Array(maxIndex - minIndex);
@@ -88,6 +91,8 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
 
     constructor(props: WidgetProps) {
         super(props);
+        makeObservable(this);
+
         const appStore = AppStore.Instance;
         // Check if this widget hasn't been assigned an ID yet
         if (!props.docked && props.id === RenderConfigComponent.WIDGET_CONFIG.type) {
@@ -128,7 +133,7 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
         }
     }
 
-    handleScaleMinChange = (ev) => {
+    handleScaleMinChange = ev => {
         if (ev.type === "keydown" && ev.keyCode !== KEYCODE_ENTER) {
             return;
         }
@@ -140,7 +145,7 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
         }
     };
 
-    handleScaleMaxChange = (ev) => {
+    handleScaleMaxChange = ev => {
         if (ev.type === "keydown" && ev.keyCode !== KEYCODE_ENTER) {
             return;
         }
@@ -209,7 +214,7 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
         }
     };
 
-    onGraphCursorMoved = _.throttle((x) => {
+    onGraphCursorMoved = _.throttle(x => {
         this.widgetStore.setCursor(x);
     }, 100);
 
@@ -241,7 +246,7 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
         if (!frame || !this.widgetStore) {
             return (
                 <div className="render-config-container">
-                    <NonIdealState icon={"folder-open"} title={"No file loaded"} description={"Load a file using the menu"}/>
+                    <NonIdealState icon={"folder-open"} title={"No file loaded"} description={"Load a file using the menu"} />
                 </div>
             );
         }
@@ -251,7 +256,7 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
             unitString = `Value (${frame.unit})`;
         }
 
-        const imageName = frame.frameInfo.fileInfo.name;
+        const imageName = frame.filename;
         const plotName = `channel ${frame.channel} histogram`;
         let linePlotProps: LinePlotComponentProps = {
             xLabel: unitString,
@@ -259,8 +264,7 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
             imageName: imageName,
             plotName: plotName,
             logY: this.widgetStore.logScaleY,
-            usePointSymbols: this.widgetStore.plotType === PlotType.POINTS,
-            interpolateLines: this.widgetStore.plotType === PlotType.LINES,
+            plotType: this.widgetStore.plotType,
             showYAxisTicks: false,
             showYAxisLabel: false,
             graphClicked: this.onMinMoved,
@@ -273,22 +277,24 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
             scrollZoom: true,
             borderWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
-            zeroLineWidth: 2
+            zeroLineWidth: 2,
+            multiPlotPropsMap: new Map()
         };
 
+        const scaleMinVal = frame.renderConfig?.scaleMinVal;
+        const scaleMaxVal = frame.renderConfig?.scaleMaxVal;
+        const primaryLineColor = getColorForTheme(this.widgetStore.primaryLineColor);
         if (frame.renderConfig.histogram && frame.renderConfig.histogram.bins && frame.renderConfig.histogram.bins.length) {
             const currentPlotData = this.plotData;
             if (currentPlotData) {
-                linePlotProps.data = currentPlotData.values;
-
-                // set line color
-                let primaryLineColor = this.widgetStore.primaryLineColor.colorHex;
-                if (appStore.darkTheme) {
-                    if (!this.widgetStore.primaryLineColor.fixed) {
-                        primaryLineColor = Colors.BLUE4;
-                    }
-                }
-                linePlotProps.lineColor = primaryLineColor;
+                let histogramProps: MultiPlotProps = {
+                    imageName: imageName,
+                    plotName: plotName,
+                    data: currentPlotData.values,
+                    type: this.widgetStore.plotType,
+                    borderColor: primaryLineColor
+                };
+                linePlotProps.multiPlotPropsMap.set("histogram", histogramProps);
 
                 // Determine scale in X and Y directions. If auto-scaling, use the bounds of the current data
                 if (this.widgetStore.isAutoScaledX) {
@@ -314,23 +320,26 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
         }
 
         if (frame.renderConfig) {
-            linePlotProps.markers = [{
-                value: frame.renderConfig.scaleMinVal,
-                id: "marker-min",
-                label: this.widgetStore.markerTextVisible ? "Min" : undefined,
-                draggable: true,
-                dragCustomBoundary: {xMax: frame.renderConfig.scaleMaxVal},
-                dragMove: this.onMinMoved,
-                horizontal: false,
-            }, {
-                value: frame.renderConfig.scaleMaxVal,
-                id: "marker-max",
-                label: this.widgetStore.markerTextVisible ? "Max" : undefined,
-                draggable: true,
-                dragCustomBoundary: {xMin: frame.renderConfig.scaleMinVal},
-                dragMove: this.onMaxMoved,
-                horizontal: false,
-            }];
+            linePlotProps.markers = [
+                {
+                    value: scaleMinVal,
+                    id: "marker-min",
+                    label: this.widgetStore.markerTextVisible ? "Min" : undefined,
+                    draggable: true,
+                    dragCustomBoundary: {xMax: scaleMaxVal},
+                    dragMove: this.onMinMoved,
+                    horizontal: false
+                },
+                {
+                    value: scaleMaxVal,
+                    id: "marker-max",
+                    label: this.widgetStore.markerTextVisible ? "Max" : undefined,
+                    draggable: true,
+                    dragCustomBoundary: {xMin: scaleMinVal},
+                    dragMove: this.onMaxMoved,
+                    horizontal: false
+                }
+            ];
 
             if (this.widgetStore.meanRmsVisible && frame.renderConfig.histogram && frame.renderConfig.histogram.stdDev > 0) {
                 linePlotProps.markers.push({
@@ -352,12 +361,41 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
                     color: appStore.darkTheme ? Colors.GREEN4 : Colors.GREEN2
                 });
             }
+
+            if (isFinite(scaleMinVal) && isFinite(scaleMaxVal) && scaleMinVal < scaleMaxVal) {
+                const colormapScalingX = Array.from(Array(COLORSCALE_LENGTH).keys()).map(x => scaleMinVal + (x / (COLORSCALE_LENGTH - 1)) * (scaleMaxVal - scaleMinVal));
+                let colormapScalingY = Array.from(Array(COLORSCALE_LENGTH).keys()).map(x => x / (COLORSCALE_LENGTH - 1));
+                colormapScalingY = colormapScalingY.map(x =>
+                    scaleValue(x, frame.renderConfig.scaling, frame.renderConfig.alpha, frame.renderConfig.gamma, frame.renderConfig.bias, frame.renderConfig.contrast, appStore.preferenceStore?.useSmoothedBiasContrast)
+                );
+                // fit to the histogram y axis
+                if (linePlotProps.logY) {
+                    colormapScalingY = colormapScalingY.map(x => Math.pow(10, Math.log10(linePlotProps.yMin) + x * (Math.log10(linePlotProps.yMax) - Math.log10(linePlotProps.yMin))));
+                } else {
+                    colormapScalingY = colormapScalingY.map(x => linePlotProps.yMin + x * (linePlotProps.yMax - linePlotProps.yMin));
+                }
+
+                let colormapScalingData = [];
+                for (let i = 0; i < COLORSCALE_LENGTH; i++) {
+                    colormapScalingData.push({x: colormapScalingX[i], y: colormapScalingY[i]});
+                }
+                const colormapScalingProps: MultiPlotProps = {
+                    imageName: imageName,
+                    plotName: plotName,
+                    data: colormapScalingData,
+                    type: PlotType.LINES,
+                    borderColor: appStore.darkTheme ? Colors.GRAY5 : Colors.GRAY1,
+                    borderWidth: 0.5,
+                    opacity: 0.5,
+                    noExport: true
+                };
+                linePlotProps.multiPlotPropsMap.set("colormapScaling", colormapScalingProps);
+            }
         }
 
         const percentileButtonCutoff = 600;
         const histogramCutoff = 430;
         const displayRankButtons = this.width > percentileButtonCutoff;
-        const stokes = frame.renderConfig.stokes;
         let percentileButtonsDiv, percentileSelectDiv;
         if (displayRankButtons) {
             const percentileRankButtons = RenderConfigStore.PERCENTILE_RANKS.map(rank => (
@@ -372,18 +410,16 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
             );
             percentileButtonsDiv = (
                 <div className="percentile-buttons">
-                    <ButtonGroup fill={true}>
-                        {percentileRankButtons}
-                    </ButtonGroup>
+                    <ButtonGroup fill={true}>{percentileRankButtons}</ButtonGroup>
                 </div>
             );
         } else {
-            const percentileRankOptions: IOptionProps [] = RenderConfigStore.PERCENTILE_RANKS.map(rank => ({label: `${rank}%`, value: rank}));
+            const percentileRankOptions: IOptionProps[] = RenderConfigStore.PERCENTILE_RANKS.map(rank => ({label: `${rank}%`, value: rank}));
             percentileRankOptions.push({label: "Custom", value: -1});
             percentileSelectDiv = (
                 <div className="percentile-select">
                     <FormGroup label="Clip Percentile" inline={true}>
-                        <HTMLSelect options={percentileRankOptions} value={frame.renderConfig.selectedPercentileVal} onChange={this.handlePercentileRankSelectChanged}/>
+                        <HTMLSelect options={percentileRankOptions} value={frame.renderConfig.selectedPercentileVal} onChange={this.handlePercentileRankSelectChanged} />
                     </FormGroup>
                 </div>
             );
@@ -391,43 +427,31 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
 
         return (
             <div className="render-config-container">
-                {this.width > histogramCutoff &&
-                <div className="histogram-container">
-                    {displayRankButtons ? percentileButtonsDiv : percentileSelectDiv}
-                    <div className="histogram-plot">
-                        <LinePlotComponent {...linePlotProps}/>
-                        {this.width >= histogramCutoff && <ProfilerInfoComponent info={this.genProfilerInfo()}/>}
+                {this.width > histogramCutoff && (
+                    <div className="histogram-container">
+                        {displayRankButtons ? percentileButtonsDiv : percentileSelectDiv}
+                        <div className="histogram-plot">
+                            <LinePlotComponent {...linePlotProps} />
+                            {this.width >= histogramCutoff && <ProfilerInfoComponent info={this.genProfilerInfo()} />}
+                        </div>
                     </div>
-                </div>
-                }
-                <div className="colormap-config">
-                    <ColormapConfigComponent
+                )}
+                <div className="options-container">
+                    <HistogramConfigComponent
                         darkTheme={appStore.darkTheme}
                         renderConfig={frame.renderConfig}
                         onCubeHistogramSelected={this.handleCubeHistogramSelected}
                         showHistogramSelect={frame.frameInfo.fileInfoExtended.depth > 1}
-                        disableHistogramSelect={AnimatorStore.Instance.animationState === AnimationState.PLAYING}
+                        disableHistogramSelect={appStore.animatorStore.animationActive}
                         warnOnCubeHistogram={(frame.frameInfo.fileFeatureFlags & CARTA.FileFeatureFlags.CUBE_HISTOGRAMS) === 0}
                     />
                     <FormGroup label={"Clip Min"} inline={true}>
-                        <NumericInput
-                            value={frame.renderConfig.scaleMinVal}
-                            selectAllOnFocus={true}
-                            buttonPosition={"none"}
-                            allowNumericCharactersOnly={false}
-                            onBlur={this.handleScaleMinChange}
-                            onKeyDown={this.handleScaleMinChange}
-                        />
+                        <SafeNumericInput value={frame.renderConfig.scaleMinVal} selectAllOnFocus={true} buttonPosition={"none"} onBlur={this.handleScaleMinChange} onKeyDown={this.handleScaleMinChange} />
                     </FormGroup>
                     <FormGroup label={"Clip Max"} inline={true}>
-                        <NumericInput
-                            value={frame.renderConfig.scaleMaxVal}
-                            selectAllOnFocus={true}
-                            buttonPosition={"none"}
-                            onBlur={this.handleScaleMaxChange}
-                            onKeyDown={this.handleScaleMaxChange}
-                        />
+                        <SafeNumericInput value={frame.renderConfig.scaleMaxVal} selectAllOnFocus={true} buttonPosition={"none"} onBlur={this.handleScaleMaxChange} onKeyDown={this.handleScaleMaxChange} />
                     </FormGroup>
+                    <ColormapConfigComponent renderConfig={frame.renderConfig} />
                     {this.width < histogramCutoff && percentileSelectDiv}
                 </div>
                 <TaskProgressDialogComponent
@@ -438,7 +462,7 @@ export class RenderConfigComponent extends React.Component<WidgetProps> {
                     onCancel={this.handleCubeHistogramCancelled}
                     text={"Calculating cube histogram"}
                 />
-                <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} refreshMode={"throttle"}/>
+                <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} refreshMode={"throttle"}></ReactResizeDetector>
             </div>
         );
     }

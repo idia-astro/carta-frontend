@@ -1,11 +1,13 @@
 import * as React from "react";
 import * as _ from "lodash";
+import {action} from "mobx";
 import {observer} from "mobx-react";
-import {observable} from "mobx";
-import * as tinycolor from "tinycolor2";
+import {makeObservable, observable} from "mobx";
+import tinycolor from "tinycolor2";
 import {SketchPicker, ColorResult, RGBColor} from "react-color";
-import {Button, Popover, PopoverPosition} from "@blueprintjs/core";
-import "./ColorPickerComponent.css";
+import {Button, PopoverPosition} from "@blueprintjs/core";
+import {Popover2} from "@blueprintjs/popover2";
+import "./ColorPickerComponent.scss";
 
 interface ColorPickerComponentProps {
     color: string | RGBColor;
@@ -15,18 +17,22 @@ interface ColorPickerComponentProps {
     disabled?: boolean;
     setColor: (color: ColorResult) => void;
 }
-
 @observer
 export class ColorPickerComponent extends React.Component<ColorPickerComponentProps> {
     private static readonly CHANGE_DELAY = 100;
 
     @observable displayColorPicker: boolean;
 
-    private handleColorClick = () => {
+    constructor(props: ColorPickerComponentProps) {
+        super(props);
+        makeObservable(this);
+    }
+
+    @action private handleColorClick = () => {
         this.displayColorPicker = true;
     };
 
-    private handleColorClose = () => {
+    @action private handleColorClose = () => {
         this.displayColorPicker = false;
     };
 
@@ -43,12 +49,17 @@ export class ColorPickerComponent extends React.Component<ColorPickerComponentPr
         }
         const buttonColor = tinycolor(this.props.color).toString();
         return (
-            <Popover isOpen={this.displayColorPicker} onClose={this.handleColorClose} position={PopoverPosition.RIGHT} popoverClassName={popoverClassName}>
+            <Popover2
+                isOpen={this.displayColorPicker}
+                onClose={this.handleColorClose}
+                position={PopoverPosition.RIGHT}
+                popoverClassName={popoverClassName}
+                content={<SketchPicker color={this.props.color} onChange={this.handleColorChange} disableAlpha={this.props.disableAlpha} presetColors={this.props.presetColors} />}
+            >
                 <Button onClick={this.handleColorClick} className="color-swatch-button" disabled={this.props.disabled}>
-                    <div style={{backgroundColor: buttonColor}}/>
+                    <div style={{backgroundColor: buttonColor}} />
                 </Button>
-                <SketchPicker color={this.props.color} onChange={this.handleColorChange} disableAlpha={this.props.disableAlpha} presetColors={this.props.presetColors}/>
-            </Popover>
+            </Popover2>
         );
     }
 }

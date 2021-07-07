@@ -1,4 +1,11 @@
-import {action, observable} from "mobx";
+import {action, observable, makeObservable} from "mobx";
+import React from "react";
+
+export enum AlertType {
+    Info,
+    Interactive,
+    Retry
+}
 
 export class AlertStore {
     private static staticInstance: AlertStore;
@@ -11,39 +18,49 @@ export class AlertStore {
     }
 
     @observable alertVisible: boolean;
-    @observable alertText: string;
-    @observable interactiveAlertVisible: boolean;
-    @observable interactiveAlertText: string;
+    @observable alertText: string | React.ReactNode;
+    @observable alertIcon: any;
+    @observable alertType: AlertType;
+    @observable interactiveAlertText: string | React.ReactNode;
+
     interactiveAlertCallback: (confirmed: boolean) => void;
 
-    @action("show_alert") showAlert = (text: string) => {
+    @action showAlert = (text: string | React.ReactNode, icon?: any) => {
         this.alertText = text;
+        this.alertIcon = icon;
+        this.alertType = AlertType.Info;
         this.alertVisible = true;
     };
 
-    @action("dismiss_alert") dismissAlert = () => {
+    @action dismissAlert = () => {
         this.alertVisible = false;
     };
 
-    @action("show_alert") showInteractiveAlert = (text: string, onClose: (confirmed: boolean) => void) => {
+    @action showInteractiveAlert = (text: string | React.ReactNode, onClose: (confirmed: boolean) => void, icon?: any) => {
         this.interactiveAlertText = text;
-        this.interactiveAlertVisible = true;
+        this.alertIcon = icon;
+        this.alertType = AlertType.Interactive;
+        this.alertVisible = true;
         this.interactiveAlertCallback = onClose;
     };
 
-    @action("dismiss_alert") dismissInteractiveAlert = () => {
-        this.interactiveAlertVisible = false;
+    @action showRetryAlert = (text: string | React.ReactNode, onClose: (confirmed: boolean) => void, icon?: any) => {
+        this.interactiveAlertText = text;
+        this.alertIcon = icon;
+        this.alertType = AlertType.Retry;
+        this.alertVisible = true;
+        this.interactiveAlertCallback = onClose;
     };
 
     @action handleInteractiveAlertClosed = (confirmed: boolean) => {
-        this.interactiveAlertVisible = false;
+        this.alertVisible = false;
         if (this.interactiveAlertCallback) {
             this.interactiveAlertCallback(confirmed);
         }
-    }
+    };
 
     private constructor() {
+        makeObservable(this);
         this.alertVisible = false;
-        this.interactiveAlertVisible = false;
     }
 }

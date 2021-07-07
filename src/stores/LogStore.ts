@@ -1,4 +1,4 @@
-import {action, computed, observable} from "mobx";
+import {action, computed, observable, makeObservable} from "mobx";
 import {CARTA} from "carta-protobuf";
 
 export class LogEntry {
@@ -24,6 +24,7 @@ export class LogStore {
     readonly logLimit = 1000;
 
     private constructor() {
+        makeObservable(this);
         this.logEntries = [];
         this.hiddenTags = [];
         this.logLevel = CARTA.ErrorSeverity.INFO;
@@ -59,8 +60,7 @@ export class LogStore {
     @action toggleTag(tag: string) {
         if (this.hiddenTags.indexOf(tag) === -1) {
             this.hiddenTags.push(tag);
-        }
-        else {
+        } else {
             this.hiddenTags = this.hiddenTags.filter(t => t !== tag);
         }
     }

@@ -14,12 +14,16 @@
             margin-bottom: 5px;
 
             .bp3-radio {
-                flex: 1 1 110px;
+                flex: 1 1 135px;
             }
 
             .bp3-slider {
                 flex: 3 3 auto;
                 margin-right: 15px;
+            }
+
+            .bp3-slider-label {
+                white-space: nowrap;
             }
 
             .bp3-input-group {
@@ -29,9 +33,8 @@
             .slider-info {
                 overflow-x: hidden;
                 flex: 1 1 180px;
-            }
-
-            .channel-slider {
+                font-size: x-small;
+                word-wrap: break-word;
             }
 
             &.range-slider {
@@ -41,12 +44,11 @@
                     .bp3-slider-axis {
                         display: none;
                     }
-
                     top: -5px;
                 }
 
                 .range-label {
-                    flex: 1 1 110px;
+                    flex: 1 1 135px;
                     margin-right: 4px;
                 }
             }
@@ -59,47 +61,48 @@
         margin-right: 10px;
         display: flex;
 
+        .playback-buttons {
+            flex: 3 3 auto;
+            height: 20px;
+
+            // Re-center button icons
+            .bp3-button {
+                .bp3-icon {
+                    position: relative;
+                    left: 3px;
+                }
+            }
+        }
+
+        .playback-mode {
+            margin: 0 5px 0 5px;
+        }
+
+        .playback-numeric-control {
+            min-width: 180px;
+            flex: 1 1 180px;
+            .bp3-numeric-input {
+                .bp3-input-group {
+                    width: 40px;
+                }
+            }
+        }
+
         &.wrap {
             flex-wrap: wrap;
-
-            .playback-mode {
-                margin-top: 10px;
-                margin-left: 0;
-            }
 
             .playback-buttons {
                 height: auto;
                 margin-right: 0;
             }
 
-            .playback-framerate {
+            .playback-mode {
                 margin-top: 10px;
+                margin-left: 0;
             }
-        }
-    }
 
-    .playback-framerate {
-        min-width: 150px;
-        flex: 1 1 150px;
-    }
-
-    #framerate-numeric {
-        width: 40px;
-    }
-
-    .playback-mode {
-        margin: 0 5px 0 5px;
-    }
-
-    .playback-buttons {
-        flex: 3 3 auto;
-        height: 20px;
-
-        // Re-center button icons
-        .bp3-button {
-            .bp3-icon {
-                position: relative;
-                left: 3px;
+            .playback-numeric-control {
+                margin-top: 10px;
             }
         }
     }

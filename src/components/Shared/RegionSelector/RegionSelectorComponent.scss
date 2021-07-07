@@ -1,0 +1,17 @@
+@import "../../../../node_modules/@blueprintjs/core/lib/scss/variables.scss";
+
+.unlinked-to-selected {
+    border: 1px solid transparent;
+    border-radius: $pt-border-radius;
+}
+
+.linked-to-selected {
+    border: 1px solid $blue2;
+    border-radius: $pt-border-radius;
+
+    &.dark-theme {
+        border: 1px solid $blue4;
+    }
+
+    transition: border 250ms linear;
+}

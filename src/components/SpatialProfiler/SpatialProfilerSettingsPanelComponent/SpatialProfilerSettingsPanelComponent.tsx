@@ -1,30 +1,36 @@
 import * as React from "react";
 import {computed, autorun} from "mobx";
 import {observer} from "mobx-react";
-import {Colors} from "@blueprintjs/core";
-import {LinePlotSettingsPanelComponentProps, LinePlotSettingsPanelComponent} from "components/Shared";
+import {Tabs, Tab} from "@blueprintjs/core";
+import {LinePlotSettingsPanelComponentProps, LinePlotSettingsPanelComponent, SmoothingSettingsComponent} from "components/Shared";
 import {SpatialProfileWidgetStore} from "stores/widgets";
-import {WidgetProps, WidgetConfig, HelpType, WidgetsStore, AppStore} from "stores";
+import {WidgetProps, DefaultWidgetConfig, HelpType, WidgetsStore, AppStore} from "stores";
 import {parseNumber} from "utilities";
+import {LineKey} from "models";
+import "./SpatialProfilerSettingsPanelComponent.scss";
 
 const KEYCODE_ENTER = 13;
 
+export enum SpatialProfilerSettingsTabs {
+    STYLING,
+    SMOOTHING
+}
+
 @observer
 export class SpatialProfilerSettingsPanelComponent extends React.Component<WidgetProps> {
-
-    public static get WIDGET_CONFIG(): WidgetConfig {
+    public static get WIDGET_CONFIG(): DefaultWidgetConfig {
         return {
             id: "spatial-profiler-floating-settings",
             type: "floating-settings",
             minWidth: 280,
             minHeight: 225,
-            defaultWidth: 300,
-            defaultHeight: 410,
+            defaultWidth: 400,
+            defaultHeight: 450,
             title: "spatial-profiler-settings",
             isCloseable: true,
             parentId: "spatial-profiler",
             parentType: "spatial-profiler",
-            helpType: HelpType.SPATIAL_PROFILER_SETTINGS
+            helpType: [HelpType.SPATIAL_PROFILER_SETTINGS_STYLING, HelpType.SPATIAL_PROFILER_SETTINGS_SMOOTHING]
         };
     }
 
@@ -76,7 +82,7 @@ export class SpatialProfilerSettingsPanelComponent extends React.Component<Widge
         }
 
         const val = parseFloat(ev.currentTarget.value);
-        const widgetStore = this.widgetStore; 
+        const widgetStore = this.widgetStore;
         const minX = parseNumber(widgetStore.minX, widgetStore.linePlotInitXYBoundaries.minXVal);
         const maxX = parseNumber(widgetStore.maxX, widgetStore.linePlotInitXYBoundaries.maxXVal);
         if (isFinite(val) && val !== minX && val < maxX) {
@@ -134,23 +140,31 @@ export class SpatialProfilerSettingsPanelComponent extends React.Component<Widge
         }
     };
 
+    handleSelectedTabChanged = (newTabId: React.ReactText) => {
+        this.widgetStore.setSettingsTabId(Number.parseInt(newTabId.toString()));
+    };
+
     render() {
         const widgetStore = this.widgetStore;
-        const profileCoordinateOptions = [{
-            value: "x", label: "X"
-        }, {
-            value: "y", label: "Y"
-        }];
+        const profileCoordinateOptions = [
+            {
+                value: "x",
+                label: "X"
+            },
+            {
+                value: "y",
+                label: "Y"
+            }
+        ];
 
         const lineSettingsProps: LinePlotSettingsPanelComponentProps = {
-            darkMode: AppStore.Instance.darkTheme,
-            primaryDarkModeLineColor: Colors.BLUE4,
-            primaryLineColor: widgetStore.primaryLineColor,
+            lineColorMap: new Map<LineKey, string>([["Primary", widgetStore.primaryLineColor]]),
+            lineOptions: [{value: "Primary", label: "Primary"}],
             lineWidth: widgetStore.lineWidth,
             plotType: widgetStore.plotType,
             linePlotPointSize: widgetStore.linePlotPointSize,
             showWCSAxis: widgetStore.wcsAxisVisible,
-            setPrimaryLineColor: widgetStore.setPrimaryLineColor,
+            setLineColor: (lineKey: LineKey, color: string) => widgetStore.setPrimaryLineColor(color),
             setLineWidth: widgetStore.setLineWidth,
             setLinePlotPointSize: widgetStore.setLinePlotPointSize,
             handleWcsAxisChanged: this.handleWcsAxisChanged,
@@ -173,7 +187,12 @@ export class SpatialProfilerSettingsPanelComponent extends React.Component<Widge
             handleYMaxChange: this.handleYMaxChange
         };
         return (
-            <LinePlotSettingsPanelComponent {...lineSettingsProps}/>
+            <div className="spatial-profiler-settings">
+                <Tabs id="spatialSettingTabs" selectedTabId={widgetStore.settingsTabId} onChange={this.handleSelectedTabChanged}>
+                    <Tab id={SpatialProfilerSettingsTabs.STYLING} title="Styling" panel={<LinePlotSettingsPanelComponent {...lineSettingsProps} />} />
+                    <Tab id={SpatialProfilerSettingsTabs.SMOOTHING} title="Smoothing" panel={<SmoothingSettingsComponent smoothingStore={widgetStore.smoothingStore} />} />
+                </Tabs>
+            </div>
         );
     }
 }

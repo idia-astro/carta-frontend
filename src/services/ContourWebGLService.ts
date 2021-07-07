@@ -1,8 +1,8 @@
-import {getShaderFromString, loadImageTexture} from "utilities";
-import allMaps from "../static/allmaps.png";
+import {getShaderFromString, initWebGL, loadImageTexture} from "utilities";
 
-const vertexShaderLine = require("!raw-loader!./GLSL/vertex_shader_contours.glsl");
-const pixelShaderDashed = require("!raw-loader!./GLSL/pixel_shader_contours.glsl");
+import allMaps from "../static/allmaps.png";
+import vertexShaderLine from "!raw-loader!./GLSL/vertex_shader_contours.glsl";
+import pixelShaderDashed from "!raw-loader!./GLSL/pixel_shader_contours.glsl";
 
 interface ShaderUniforms {
     RangeScale: WebGLUniformLocation;
@@ -13,6 +13,7 @@ interface ShaderUniforms {
     DashLength: WebGLUniformLocation;
     LineColor: WebGLUniformLocation;
     LineThickness: WebGLUniformLocation;
+    PixelRatio: WebGLUniformLocation;
     CmapEnabled: WebGLUniformLocation;
     CmapValue: WebGLUniformLocation;
     CmapTexture: WebGLUniformLocation;
@@ -45,12 +46,18 @@ export class ContourWebGLService {
     }
 
     public setCanvasSize = (width: number, height: number) => {
+        if (!this.gl) {
+            return;
+        }
         this.gl.canvas.width = width;
         this.gl.canvas.height = height;
         this.gl.viewport(0, 0, width, height);
     };
 
     private initShaders() {
+        if (!this.gl) {
+            return;
+        }
         let vertexShader = getShaderFromString(this.gl, vertexShaderLine, WebGLRenderingContext.VERTEX_SHADER);
         let fragmentShader = getShaderFromString(this.gl, pixelShaderDashed, WebGLRenderingContext.FRAGMENT_SHADER);
 
@@ -79,6 +86,7 @@ export class ContourWebGLService {
             DashLength: this.gl.getUniformLocation(shaderProgram, "uDashLength"),
             LineColor: this.gl.getUniformLocation(shaderProgram, "uLineColor"),
             LineThickness: this.gl.getUniformLocation(shaderProgram, "uLineThickness"),
+            PixelRatio: this.gl.getUniformLocation(shaderProgram, "uPixelRatio"),
             CmapEnabled: this.gl.getUniformLocation(shaderProgram, "uCmapEnabled"),
             CmapValue: this.gl.getUniformLocation(shaderProgram, "uCmapValue"),
             CmapTexture: this.gl.getUniformLocation(shaderProgram, "uCmapTexture"),
@@ -90,7 +98,7 @@ export class ContourWebGLService {
             ControlMapSize: this.gl.getUniformLocation(shaderProgram, "uControlMapSize"),
             ControlMapMin: this.gl.getUniformLocation(shaderProgram, "uControlMapMin"),
             ControlMapMax: this.gl.getUniformLocation(shaderProgram, "uControlMapMax"),
-            ControlMapTexture: this.gl.getUniformLocation(shaderProgram, "uControlMapTexture"),
+            ControlMapTexture: this.gl.getUniformLocation(shaderProgram, "uControlMapTexture")
         };
 
         this.gl.uniform1i(this.shaderUniforms.NumCmaps, 79);
@@ -98,10 +106,12 @@ export class ContourWebGLService {
     }
 
     private constructor() {
-        this.gl = document.createElement("canvas").getContext("webgl");
-        this.gl.getExtension("OES_texture_float");
+        this.gl = initWebGL();
+        if (!this.gl) {
+            return;
+        }
+
         this.initShaders();
-        // this.initBuffers();
         loadImageTexture(this.gl, allMaps, WebGLRenderingContext.TEXTURE0).then(texture => {
             this.cmapTexture = texture;
         });

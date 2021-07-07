@@ -3,36 +3,35 @@ import {observer} from "mobx-react";
 import {RootMenuComponent, SplashScreenComponent, HelpDrawerComponent} from "components";
 import {
     AboutDialogComponent,
-    AuthDialogComponent,
     FileBrowserDialogComponent,
-    OverlaySettingsDialogComponent,
     PreferenceDialogComponent,
     RegionDialogComponent,
     SaveLayoutDialogComponent,
     FileInfoDialogComponent,
     ContourDialogComponent,
-    DebugExecutionDialogComponent
+    DebugExecutionDialogComponent,
+    ExternalPageDialogComponent,
+    StokesDialogComponent
 } from "components/Dialogs";
 
 @observer
 export class UIControllerComponent extends React.Component {
- 
     render() {
         return (
             <React.Fragment>
-                <SplashScreenComponent/>
-                <RootMenuComponent/>
-                <OverlaySettingsDialogComponent/>
-                <AuthDialogComponent/>
-                <FileBrowserDialogComponent/>
-                <AboutDialogComponent/>
-                <RegionDialogComponent/>
-                <PreferenceDialogComponent/>
-                <SaveLayoutDialogComponent/>
-                <FileInfoDialogComponent/>
-                <ContourDialogComponent/>
-                <DebugExecutionDialogComponent/>
-                <HelpDrawerComponent/>
+                <RootMenuComponent />
+                <RegionDialogComponent />
+                <ContourDialogComponent />
+                <FileInfoDialogComponent />
+                <FileBrowserDialogComponent />
+                <PreferenceDialogComponent />
+                <SaveLayoutDialogComponent />
+                <DebugExecutionDialogComponent />
+                <AboutDialogComponent />
+                <ExternalPageDialogComponent />
+                <HelpDrawerComponent />
+                <StokesDialogComponent />
+                <SplashScreenComponent />
             </React.Fragment>
         );
     }

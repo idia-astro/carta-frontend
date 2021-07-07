@@ -1,22 +1,22 @@
 import * as React from "react";
 import * as _ from "lodash";
 import ReactResizeDetector from "react-resize-detector";
-import {action, autorun, computed, observable} from "mobx";
+import {action, autorun, computed, makeObservable, observable} from "mobx";
 import {observer} from "mobx-react";
-import {NonIdealState, Colors} from "@blueprintjs/core";
+import {NonIdealState} from "@blueprintjs/core";
 import {CARTA} from "carta-protobuf";
 import {HistogramToolbarComponent} from "./HistogramToolbarComponent/HistogramToolbarComponent";
-import {LinePlotComponent, LinePlotComponentProps, PlotType} from "components/Shared";
+import {LinePlotComponent, LinePlotComponentProps} from "components/Shared";
 import {TickType} from "../Shared/LinePlot/PlotContainer/PlotContainerComponent";
 import {HistogramWidgetStore} from "stores/widgets";
-import {FrameStore, WidgetConfig, WidgetProps, HelpType, WidgetsStore, AppStore} from "stores";
-import {clamp} from "utilities";
+import {FrameStore, WidgetProps, HelpType, WidgetsStore, AppStore, DefaultWidgetConfig} from "stores";
+import {clamp, getColorForTheme} from "utilities";
 import {Point2D} from "models";
-import "./HistogramComponent.css";
+import "./HistogramComponent.scss";
 
 @observer
 export class HistogramComponent extends React.Component<WidgetProps> {
-    public static get WIDGET_CONFIG(): WidgetConfig {
+    public static get WIDGET_CONFIG(): DefaultWidgetConfig {
         return {
             id: "histogram",
             type: "histogram",
@@ -50,8 +50,8 @@ export class HistogramComponent extends React.Component<WidgetProps> {
     @computed get histogramData(): CARTA.IHistogram {
         const appStore = AppStore.Instance;
 
-        if (appStore.activeFrame) {
-            let fileId = appStore.activeFrame.frameInfo.fileId;
+        if (this.widgetStore.effectiveFrame) {
+            let fileId = this.widgetStore.effectiveFrame.frameInfo.fileId;
             let regionId = this.widgetStore.effectiveRegionId;
 
             // // Image histograms handled slightly differently
@@ -74,7 +74,7 @@ export class HistogramComponent extends React.Component<WidgetProps> {
         return null;
     }
 
-    @computed get plotData(): { values: Array<Point2D>, xMin: number, xMax: number, yMin: number, yMax: number } {
+    @computed get plotData(): {values: Array<Point2D>; xMin: number; xMax: number; yMin: number; yMax: number} {
         const histogram = this.histogramData;
         if (histogram) {
             let minIndex = 0;
@@ -93,7 +93,7 @@ export class HistogramComponent extends React.Component<WidgetProps> {
             let yMin = histogram.bins[minIndex];
             let yMax = yMin;
 
-            let values: Array<{ x: number, y: number }>;
+            let values: Array<{x: number; y: number}>;
             const N = maxIndex - minIndex;
             if (N > 0 && !isNaN(N)) {
                 values = new Array(maxIndex - minIndex);
@@ -113,7 +113,7 @@ export class HistogramComponent extends React.Component<WidgetProps> {
         let headerString = [];
 
         // region info
-        const frame = AppStore.Instance.activeFrame;
+        const frame = this.widgetStore.effectiveFrame;
         if (frame && frame.frameInfo && frame.regionSet) {
             const regionId = this.widgetStore.effectiveRegionId;
             const region = frame.regionSet.regions.find(r => r.regionId === regionId);
@@ -127,6 +127,8 @@ export class HistogramComponent extends React.Component<WidgetProps> {
 
     constructor(props: WidgetProps) {
         super(props);
+        makeObservable(this);
+
         const appStore = AppStore.Instance;
         // Check if this widget hasn't been assigned an ID yet
         if (!props.docked && props.id === HistogramComponent.WIDGET_CONFIG.type) {
@@ -141,14 +143,14 @@ export class HistogramComponent extends React.Component<WidgetProps> {
         }
         // Update widget title when region or coordinate changes
         autorun(() => {
-            if (this.widgetStore && appStore.activeFrame) {
+            if (this.widgetStore && this.widgetStore.effectiveFrame) {
                 let regionString = "Unknown";
                 const regionId = this.widgetStore.effectiveRegionId;
 
                 if (regionId === -1) {
                     regionString = "Image";
-                } else if (appStore.activeFrame.regionSet) {
-                    const region = appStore.activeFrame.regionSet.regions.find(r => r.regionId === regionId);
+                } else if (this.widgetStore.effectiveFrame.regionSet) {
+                    const region = this.widgetStore.effectiveFrame.regionSet.regions.find(r => r.regionId === regionId);
                     if (region) {
                         regionString = region.nameString;
                     }
@@ -169,7 +171,7 @@ export class HistogramComponent extends React.Component<WidgetProps> {
     }
 
     componentDidUpdate() {
-        const frame = AppStore.Instance.activeFrame;
+        const frame = this.widgetStore.effectiveFrame;
 
         if (frame !== this.cachedFrame) {
             this.cachedFrame = frame;
@@ -182,18 +184,18 @@ export class HistogramComponent extends React.Component<WidgetProps> {
         this.height = height;
     };
 
-    onGraphCursorMoved = _.throttle((x) => {
+    onGraphCursorMoved = _.throttle(x => {
         this.widgetStore.setCursor(x);
     }, 100);
 
     render() {
         const appStore = AppStore.Instance;
-        const frame = appStore.activeFrame;
+        const frame = this.widgetStore.effectiveFrame;
 
         if (!frame || !this.widgetStore) {
             return (
                 <div className="histogram-widget">
-                    <NonIdealState icon={"folder-open"} title={"No file loaded"} description={"Load a file using the menu"}/>
+                    <NonIdealState icon={"folder-open"} title={"No file loaded"} description={"Load a file using the menu"} />
                 </div>
             );
         }
@@ -203,7 +205,7 @@ export class HistogramComponent extends React.Component<WidgetProps> {
             unitString = `Value (${frame.unit})`;
         }
 
-        const imageName = frame.frameInfo.fileInfo.name;
+        const imageName = frame.filename;
         const plotName = `channel ${frame.channel} histogram`;
         let linePlotProps: LinePlotComponentProps = {
             xLabel: unitString,
@@ -212,8 +214,7 @@ export class HistogramComponent extends React.Component<WidgetProps> {
             imageName: imageName,
             plotName: plotName,
             logY: this.widgetStore.logScaleY,
-            usePointSymbols: this.widgetStore.plotType === PlotType.POINTS,
-            interpolateLines: this.widgetStore.plotType === PlotType.LINES,
+            plotType: this.widgetStore.plotType,
             tickTypeY: TickType.Scientific,
             graphZoomedX: this.widgetStore.setXBounds,
             graphZoomedY: this.widgetStore.setYBounds,
@@ -232,12 +233,7 @@ export class HistogramComponent extends React.Component<WidgetProps> {
                 linePlotProps.data = currentPlotData.values;
 
                 // set line color
-                let primaryLineColor = this.widgetStore.primaryLineColor.colorHex;
-                if (appStore.darkTheme) {
-                    if (!this.widgetStore.primaryLineColor.fixed) {
-                        primaryLineColor = Colors.BLUE4;   
-                    }
-                }
+                let primaryLineColor = getColorForTheme(this.widgetStore.primaryLineColor);
                 linePlotProps.lineColor = primaryLineColor;
 
                 // Determine scale in X and Y directions. If auto-scaling, use the bounds of the current data
@@ -266,10 +262,6 @@ export class HistogramComponent extends React.Component<WidgetProps> {
         }
 
         let className = "histogram-widget";
-        if (this.widgetStore.matchesSelectedRegion) {
-            className += " linked-to-selected";
-        }
-
         if (appStore.darkTheme) {
             className += " dark-theme";
         }
@@ -277,12 +269,12 @@ export class HistogramComponent extends React.Component<WidgetProps> {
         return (
             <div className={className}>
                 <div className="histogram-container">
-                    <HistogramToolbarComponent widgetStore={this.widgetStore}/>
+                    <HistogramToolbarComponent widgetStore={this.widgetStore} />
                     <div className="histogram-plot">
-                        <LinePlotComponent {...linePlotProps}/>
+                        <LinePlotComponent {...linePlotProps} />
                     </div>
                 </div>
-                <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} refreshMode={"throttle"}/>
+                <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} refreshMode={"throttle"}></ReactResizeDetector>
             </div>
         );
     }

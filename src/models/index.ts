@@ -21,3 +21,7 @@ export * from "./CARTAInfo";
 export * from "./LayoutConfig";
 export * from "./ControlMap";
 export * from "./WCSMatchingType";
+export * from "./MomentDefinition";
+export * from "./StatisticsDefinition";
+export * from "./TypeDefinition";
+export * from "./Snippet";

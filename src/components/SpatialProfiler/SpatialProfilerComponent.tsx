@@ -1,24 +1,24 @@
 import * as React from "react";
 import * as _ from "lodash";
 import * as AST from "ast_wrapper";
-import {autorun, computed, observable} from "mobx";
+import {action, autorun, computed, makeObservable, observable} from "mobx";
 import {observer} from "mobx-react";
 import {Colors, NonIdealState} from "@blueprintjs/core";
 import ReactResizeDetector from "react-resize-detector";
-import {LinePlotComponent, LinePlotComponentProps, PlotType, ProfilerInfoComponent, VERTICAL_RANGE_PADDING} from "components/Shared";
-import {TickType} from "../Shared/LinePlot/PlotContainer/PlotContainerComponent";
-import {ASTSettingsString, FrameStore, SpatialProfileStore, WidgetConfig, WidgetProps, HelpType, OverlayStore, WidgetsStore, AppStore} from "stores";
+import {LinePlotComponent, LinePlotComponentProps, PlotType, ProfilerInfoComponent, VERTICAL_RANGE_PADDING, SmoothingType} from "components/Shared";
+import {TickType, MultiPlotProps} from "../Shared/LinePlot/PlotContainer/PlotContainerComponent";
+import {AppStore, ASTSettingsString, DefaultWidgetConfig, FrameStore, HelpType, OverlayStore, SpatialProfileStore, WidgetProps, WidgetsStore} from "stores";
 import {SpatialProfileWidgetStore} from "stores/widgets";
 import {Point2D} from "models";
-import {binarySearchByX, clamp, formattedExponential, formattedNotation, toFixed} from "utilities";
-import "./SpatialProfilerComponent.css";
+import {binarySearchByX, clamp, formattedExponential, transformPoint, toFixed, getColorForTheme} from "utilities";
+import "./SpatialProfilerComponent.scss";
 
 // The fixed size of the settings panel popover (excluding the show/hide button)
 const AUTOSCALE_THROTTLE_TIME = 100;
 
 @observer
 export class SpatialProfilerComponent extends React.Component<WidgetProps> {
-    public static get WIDGET_CONFIG(): WidgetConfig {
+    public static get WIDGET_CONFIG(): DefaultWidgetConfig {
         return {
             id: "spatial-profiler",
             type: "spatial-profiler",
@@ -75,7 +75,7 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
         }
     }
 
-    @computed get plotData(): { values: Array<Point2D>, xMin: number, xMax: number, yMin: number, yMax: number, yMean: number, yRms: number } {
+    @computed get plotData(): {values: Array<Point2D>; smoothingValues: Array<Point2D>; xMin: number; xMax: number; yMin: number; yMax: number; yMean: number; yRms: number} {
         const isXProfile = this.widgetStore.coordinate.indexOf("x") >= 0;
         if (!this.frame || !this.width || !this.profileStore) {
             return null;
@@ -113,94 +113,71 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
             let ySum2 = 0;
             let yCount = 0;
 
-            const N = Math.floor(Math.min(xMax - xMin + 1, coordinateData.values.length));
+            let values: Array<{x: number; y: number}>;
+            let smoothingValues: Array<{x: number; y: number}>;
+            let N: number;
 
-            const numPixels = this.width;
-            const decimationFactor = Math.round(N / numPixels);
-            const numDecimatedPoints = decimationFactor > 1 ? 2 * Math.ceil(N / decimationFactor) : N;
-
-            let values: Array<{ x: number, y: number }>;
-            if (N > 0) {
-                if (decimationFactor <= 1 || this.widgetStore.plotType === PlotType.POINTS) {
-                    // full resolution data
-                    values = new Array(N);
-                    for (let i = 0; i < N; i++) {
-                        const y = coordinateData.values[i + xMin];
-                        const x = coordinateData.start + i + xMin;
-                        if (x >= xMin && x <= xMax && isFinite(y)) {
-                            yMin = Math.min(yMin, y);
-                            yMax = Math.max(yMax, y);
-                            yCount++;
-                            ySum += y;
-                            ySum2 += y * y;
-                        }
-                        values[i] = {x, y};
+            if (coordinateData.mip > 1 || coordinateData.start > 0 || coordinateData.end < xMax) {
+                N = coordinateData.values.length;
+                values = new Array(N);
+                for (let i = 0; i < N; i++) {
+                    const y = coordinateData.values[i];
+                    const x = coordinateData.start + i * coordinateData.mip;
+                    if (x >= xMin && x <= xMax && isFinite(y)) {
+                        yMin = Math.min(yMin, y);
+                        yMax = Math.max(yMax, y);
+                        yCount++;
+                        ySum += y;
+                        ySum2 += y * y;
                     }
-                } else {
-                    // Decimated data
-                    values = new Array(numDecimatedPoints);
-                    let localMin = NaN, localMax = NaN;
-                    let posMin, posMax;
-                    let localCounter = 0;
-                    for (let i = 0; i < N; i++) {
-                        const val = coordinateData.values[i + xMin];
-                        const decimatedIndex = Math.floor(i / (decimationFactor));
-                        if (isFinite(val)) {
-                            yMin = Math.min(yMin, val);
-                            yMax = Math.max(yMax, val);
-                            yCount++;
-                            ySum += val;
-                            ySum2 += val * val;
-
-                            if (isNaN(localMin) || val < localMin) {
-                                localMin = val;
-                                posMin = i;
-                            }
-                            if (isNaN(localMax) || val > localMax) {
-                                localMax = val;
-                                posMax = i;
-                            }
-                        }
-
-                        localCounter++;
-                        if (localCounter === decimationFactor) {
-                            // Use the midpoint of the decimated data range as the x coordinate (rounded down to nearest pixel)
-                            const x1 = Math.floor(coordinateData.start + posMin + xMin);
-                            const x2 = Math.floor(coordinateData.start + posMax + xMin);
-
-                            if (posMin < posMax) {
-                                values[decimatedIndex * 2] = {x: x1, y: localMin};
-                                values[decimatedIndex * 2 + 1] = {x: x2, y: localMax};
-                            } else {
-                                values[decimatedIndex * 2] = {x: x2, y: localMax};
-                                values[decimatedIndex * 2 + 1] = {x: x1, y: localMin};
-                            }
-
-                            localMin = NaN;
-                            localMax = NaN;
-                            localCounter = 0;
-                        }
+                    values[i] = {x, y};
+                }
+            } else {
+                N = Math.floor(Math.min(xMax - xMin + 1, coordinateData.values.length));
+                if (N > 0) {
+                    let xArray: number[] = new Array(coordinateData.values.length);
+                    for (let i = 0; i < coordinateData.values.length; i++) {
+                        xArray[i] = i;
                     }
+                    const numPixels = this.width;
+                    const decimationFactor = Math.round(N / numPixels);
 
-                    // Add last point if there is left over data
-                    if (localCounter > 0) {
-                        const x1 = Math.floor(coordinateData.start + posMin + xMin - decimationFactor / 2.0);
-                        const x2 = Math.floor(coordinateData.start + posMax + xMin - decimationFactor / 2.0);
-
-                        if (posMin < posMax) {
-                            values[values.length - 2] = {x: x1, y: localMin};
-                            values[values.length - 1] = {x: x2, y: localMax};
-                        } else {
-                            values[values.length - 2] = {x: x2, y: localMax};
-                            values[values.length - 1] = {x: x1, y: localMin};
+                    if (decimationFactor <= 1 || this.widgetStore.plotType === PlotType.POINTS) {
+                        // full resolution data
+                        values = new Array(N);
+                        for (let i = 0; i < N; i++) {
+                            const y = coordinateData.values[i + xMin];
+                            const x = coordinateData.start + i + xMin;
+                            if (x >= xMin && x <= xMax && isFinite(y)) {
+                                yMin = Math.min(yMin, y);
+                                yMax = Math.max(yMax, y);
+                                yCount++;
+                                ySum += y;
+                                ySum2 += y * y;
+                            }
+                            values[i] = {x, y};
                         }
+                    } else {
+                        // Decimated data
+                        for (let i = 0; i < N; i++) {
+                            const val = coordinateData.values[i + xMin];
+                            if (isFinite(val)) {
+                                yMin = Math.min(yMin, val);
+                                yMax = Math.max(yMax, val);
+                                yCount++;
+                                ySum += val;
+                                ySum2 += val * val;
+                            }
+                        }
+                        values = this.widgetStore.smoothingStore.getDecimatedPoint2DArray(xArray, coordinateData.values, decimationFactor, xMin, xMax);
                     }
+                    smoothingValues = this.widgetStore.smoothingStore.getSmoothingPoint2DArray(xArray, coordinateData.values, xMin, xMax);
                 }
             }
 
             if (yCount > 0) {
                 yMean = ySum / yCount;
-                yRms = Math.sqrt((ySum2 / yCount) - yMean * yMean);
+                yRms = Math.sqrt(ySum2 / yCount - yMean * yMean);
             }
 
             if (yMin === Number.MAX_VALUE) {
@@ -212,12 +189,24 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
                 yMin -= range * VERTICAL_RANGE_PADDING;
                 yMax += range * VERTICAL_RANGE_PADDING;
             }
-            return {values: values, xMin, xMax, yMin, yMax, yMean, yRms};
+            return {values: values, smoothingValues, xMin, xMax, yMin, yMax, yMean, yRms};
         }
+    }
+
+    @computed get exportHeader(): string[] {
+        const appStore = AppStore.Instance;
+        const headerString: string[] = [];
+        headerString.push(`region (pixel): Point[${toFixed(appStore.activeFrame.cursorInfo.posImageSpace.x)}, ${toFixed(appStore.activeFrame.cursorInfo.posImageSpace.y)}]`);
+        if (appStore.activeFrame.cursorInfo.infoWCS) {
+            headerString.push(`region (world): Point[${appStore.activeFrame.cursorInfo.infoWCS.x}, ${appStore.activeFrame.cursorInfo.infoWCS.y}]`);
+        }
+        return headerString;
     }
 
     constructor(props: WidgetProps) {
         super(props);
+        makeObservable(this);
+
         const appStore = AppStore.Instance;
         // Check if this widget hasn't been assigned an ID yet
         if (!props.docked && props.id === SpatialProfilerComponent.WIDGET_CONFIG.type) {
@@ -248,22 +237,28 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
             }
         });
 
-        autorun(() => {
-            const isXProfile = this.widgetStore.coordinate.indexOf("x") >= 0;
-            if (!this.frame || !this.width) {
-                return null;
-            }
-            if (isXProfile) {
-                this.autoScaleHorizontalMin = clamp(this.frame.requiredFrameView.xMin, 0, this.frame.frameInfo.fileInfoExtended.width);
-                this.autoScaleHorizontalMax = clamp(this.frame.requiredFrameView.xMax, 0, this.frame.frameInfo.fileInfoExtended.width);
-            } else {
-                this.autoScaleHorizontalMin = clamp(this.frame.requiredFrameView.yMin, 0, this.frame.frameInfo.fileInfoExtended.height);
-                this.autoScaleHorizontalMax = clamp(this.frame.requiredFrameView.yMax, 0, this.frame.frameInfo.fileInfoExtended.height);
-            }
-        }, {delay: AUTOSCALE_THROTTLE_TIME});
+        autorun(
+            () => {
+                const isXProfile = this.widgetStore.coordinate.indexOf("x") >= 0;
+                if (!this.frame || !this.width) {
+                    return null;
+                }
+                if (isXProfile) {
+                    this.setAutoScaleBounds(clamp(this.frame.requiredFrameView.xMin, 0, this.frame.frameInfo.fileInfoExtended.width), clamp(this.frame.requiredFrameView.xMax, 0, this.frame.frameInfo.fileInfoExtended.width));
+                } else {
+                    this.setAutoScaleBounds(clamp(this.frame.requiredFrameView.yMin, 0, this.frame.frameInfo.fileInfoExtended.height), clamp(this.frame.requiredFrameView.yMax, 0, this.frame.frameInfo.fileInfoExtended.height));
+                }
+            },
+            {delay: AUTOSCALE_THROTTLE_TIME}
+        );
     }
 
-    onResize = (width: number, height: number) => {
+    @action private setAutoScaleBounds = (min: number, max: number) => {
+        this.autoScaleHorizontalMin = min;
+        this.autoScaleHorizontalMax = max;
+    };
+
+    @action private onResize = (width: number, height: number) => {
         this.width = width;
         this.height = height;
     };
@@ -282,13 +277,13 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
 
         if (isXProfile) {
             for (let i = 0; i < values.length; i++) {
-                const pointWCS = AST.transformPoint(this.frame.wcsInfo, values[i] + 1, this.profileStore.y + 1);
+                const pointWCS = transformPoint(this.frame.wcsInfo, {x: values[i], y: this.profileStore.y});
                 const normVals = AST.normalizeCoordinates(this.frame.wcsInfo, pointWCS.x, pointWCS.y);
                 this.cachedFormattedCoordinates[i] = AST.getFormattedCoordinates(this.frame.wcsInfo, normVals.x, undefined, astString.toString(), true).x;
             }
         } else {
             for (let i = 0; i < values.length; i++) {
-                const pointWCS = AST.transformPoint(this.frame.wcsInfo, this.profileStore.x + 1, values[i] + 1);
+                const pointWCS = transformPoint(this.frame.wcsInfo, {x: this.profileStore.x, y: values[i]});
                 const normVals = AST.normalizeCoordinates(this.frame.wcsInfo, pointWCS.x, pointWCS.y);
                 this.cachedFormattedCoordinates[i] = AST.getFormattedCoordinates(this.frame.wcsInfo, undefined, normVals.y, astString.toString(), true).y;
             }
@@ -358,21 +353,21 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
         let profilerInfo: string[] = [];
         if (this.plotData) {
             const isXCoordinate = this.widgetStore.coordinate.indexOf("x") >= 0;
-            if (this.widgetStore.isMouseMoveIntoLinePlots) { // handle the value when cursor is in profiler
+            if (this.widgetStore.isMouseMoveIntoLinePlots) {
+                // handle the value when cursor is in profiler
                 const nearest = binarySearchByX(this.plotData.values, this.widgetStore.cursorX);
                 if (nearest?.point) {
-                    const pixelPoint = isXCoordinate ?
-                        {x: nearest.point.x, y: this.profileStore.y} :
-                        {x: this.profileStore.x, y: nearest.point.x};
+                    const pixelPoint = isXCoordinate ? {x: nearest.point.x, y: this.profileStore.y} : {x: this.profileStore.x, y: nearest.point.x};
                     const cursorInfo = this.frame.getCursorInfo(pixelPoint);
                     const wcsLabel = cursorInfo?.infoWCS ? `WCS: ${isXCoordinate ? cursorInfo.infoWCS.x : cursorInfo.infoWCS.y}, ` : "";
                     const imageLabel = `Image: ${nearest.point.x} px, `;
                     const valueLabel = `${nearest.point.y !== undefined ? formattedExponential(nearest.point.y, 5) : ""}`;
                     profilerInfo.push("Cursor: (" + wcsLabel + imageLabel + valueLabel + ")");
                 }
-            } else { // get value directly from frame when cursor is in image viewer
+            } else {
+                // get value directly from frame when cursor is in image viewer
                 const cursorInfo = this.frame.cursorInfo;
-                const cursorValue = this.frame.cursorValue;
+                const cursorValue = this.frame.cursorValue?.value;
                 if (cursorInfo?.posImageSpace) {
                     const wcsLabel = cursorInfo?.infoWCS ? `WCS: ${isXCoordinate ? cursorInfo.infoWCS.x : cursorInfo.infoWCS.y}, ` : "";
                     const imageLabel = `Image: ${toFixed(isXCoordinate ? cursorInfo.posImageSpace.x : cursorInfo.posImageSpace.y)} px, `;
@@ -381,34 +376,32 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
                 }
             }
             if (this.widgetStore.meanRmsVisible) {
-                profilerInfo.push(`Mean/RMS: ${formattedNotation(this.plotData.yMean) + " / " + formattedNotation(this.plotData.yRms)}`);
+                profilerInfo.push(`Mean/RMS: ${formattedExponential(this.plotData.yMean, 2) + " / " + formattedExponential(this.plotData.yRms, 2)}`);
             }
         }
         return profilerInfo;
     };
 
-    onGraphCursorMoved = _.throttle((x) => {
+    onGraphCursorMoved = _.throttle(x => {
         this.widgetStore.setCursor(x);
     }, 33);
 
     render() {
         const appStore = AppStore.Instance;
         if (!this.widgetStore) {
-            return <NonIdealState icon={"error"} title={"Missing profile"} description={"Profile not found"}/>;
+            return <NonIdealState icon={"error"} title={"Missing profile"} description={"Profile not found"} />;
         }
 
         const isXProfile = this.widgetStore.coordinate.indexOf("x") >= 0;
-
-        const imageName = (appStore.activeFrame ? appStore.activeFrame.frameInfo.fileInfo.name : undefined);
-
+        const imageName = appStore.activeFrame ? appStore.activeFrame.filename : undefined;
+        const plotName = `${isXProfile ? "X" : "Y"} profile`;
         let linePlotProps: LinePlotComponentProps = {
             xLabel: `${isXProfile ? "X" : "Y"} coordinate`,
             yLabel: "Value",
             darkMode: appStore.darkTheme,
             imageName: imageName,
-            plotName: `${isXProfile ? "X" : "Y"} profile`,
-            usePointSymbols: this.widgetStore.plotType === PlotType.POINTS,
-            interpolateLines: this.widgetStore.plotType === PlotType.LINES,
+            plotName: plotName,
+            plotType: this.widgetStore.plotType,
             tickTypeY: TickType.Scientific,
             graphZoomedX: this.widgetStore.setXBounds,
             graphZoomedY: this.widgetStore.setYBounds,
@@ -420,6 +413,8 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
             zeroLineWidth: 2,
             borderWidth: this.widgetStore.lineWidth,
             pointRadius: this.widgetStore.linePlotPointSize,
+            multiPlotPropsMap: new Map<string, MultiPlotProps>(),
+            order: 1
         };
 
         if (appStore.activeFrame) {
@@ -440,13 +435,27 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
                     linePlotProps.data = currentPlotData.values;
 
                     // set line color
-                    let primaryLineColor = this.widgetStore.primaryLineColor.colorHex;
-                    if (appStore.darkTheme) {
-                        if (!this.widgetStore.primaryLineColor.fixed) {
-                            primaryLineColor = Colors.BLUE4;   
-                        }
-                    }
+                    let primaryLineColor = getColorForTheme(this.widgetStore.primaryLineColor);
                     linePlotProps.lineColor = primaryLineColor;
+                    const smoothingStore = this.widgetStore.smoothingStore;
+                    if (smoothingStore.type !== SmoothingType.NONE && currentPlotData?.smoothingValues) {
+                        if (!smoothingStore.isOverlayOn) {
+                            linePlotProps.lineColor = "#00000000";
+                        }
+
+                        let smoothingPlotProps: MultiPlotProps = {
+                            imageName: imageName,
+                            plotName: `${plotName}-smoothed`,
+                            data: currentPlotData.smoothingValues,
+                            type: smoothingStore.lineType,
+                            borderColor: getColorForTheme(smoothingStore.lineColor),
+                            borderWidth: smoothingStore.lineWidth,
+                            pointRadius: smoothingStore.pointRadius,
+                            order: 0,
+                            comments: smoothingStore.comments
+                        };
+                        linePlotProps.multiPlotPropsMap.set("smoothed", smoothingPlotProps);
+                    }
 
                     // Determine scale in X and Y directions. If auto-scaling, use the bounds of the current data
                     if (this.widgetStore.isAutoScaledX) {
@@ -467,7 +476,7 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
 
                     // Use interpolated lines when decimating data to speed up rendering
                     if (currentPlotData.values && currentPlotData.values.length > this.width * 1.5) {
-                        linePlotProps.interpolateLines = true;
+                        linePlotProps.plotType = PlotType.LINES;
                     }
                 }
 
@@ -476,12 +485,14 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
                     image: isXProfile ? this.profileStore.x : this.profileStore.y,
                     unit: "px"
                 };
-                linePlotProps.markers = [{
-                    value: cursorX.image,
-                    id: "marker-image-cursor",
-                    draggable: false,
-                    horizontal: false,
-                }];
+                linePlotProps.markers = [
+                    {
+                        value: cursorX.image,
+                        id: "marker-image-cursor",
+                        draggable: false,
+                        horizontal: false
+                    }
+                ];
                 linePlotProps.markers.push({
                     value: cursorX.profiler,
                     id: "marker-profiler-cursor",
@@ -489,7 +500,7 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
                     horizontal: false,
                     color: appStore.darkTheme ? Colors.GRAY4 : Colors.GRAY2,
                     opacity: 0.8,
-                    isMouseMove: true,
+                    isMouseMove: true
                 });
 
                 if (this.widgetStore.meanRmsVisible && currentPlotData && isFinite(currentPlotData.yMean) && isFinite(currentPlotData.yRms)) {
@@ -515,12 +526,7 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
 
                 // TODO: Get comments from region info, rather than directly from cursor position
                 if (appStore.activeFrame.cursorInfo) {
-                    const comments: string[] = [];
-                    comments.push(`region (pixel): Point[${toFixed(appStore.activeFrame.cursorInfo.posImageSpace.x)}, ${toFixed(appStore.activeFrame.cursorInfo.posImageSpace.y)}]`);
-                    if (appStore.activeFrame.cursorInfo.infoWCS) {
-                        comments.push(`region (world): Point[${appStore.activeFrame.cursorInfo.infoWCS.x}, ${appStore.activeFrame.cursorInfo.infoWCS.y}]`);
-                    }
-                    linePlotProps.comments = comments;
+                    linePlotProps.comments = this.exportHeader;
                 }
             }
         }
@@ -529,11 +535,11 @@ export class SpatialProfilerComponent extends React.Component<WidgetProps> {
             <div className={"spatial-profiler-widget"}>
                 <div className="profile-container">
                     <div className="profile-plot">
-                        <LinePlotComponent {...linePlotProps}/>
+                        <LinePlotComponent {...linePlotProps} />
                     </div>
-                    <ProfilerInfoComponent info={this.genProfilerInfo()}/>
+                    <ProfilerInfoComponent info={this.genProfilerInfo()} />
                 </div>
-                <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} refreshMode={"throttle"} refreshRate={33}/>
+                <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} refreshMode={"throttle"} refreshRate={33}></ReactResizeDetector>
             </div>
         );
     }

@@ -1,4 +1,6 @@
 export class TileCoordinate {
+    private static readonly FileIdOffset = 2 ** 32;
+
     layer: number;
     x: number;
     y: number;
@@ -13,11 +15,19 @@ export class TileCoordinate {
         return TileCoordinate.EncodeCoordinate(this);
     }
 
-    public static EncodeCoordinate(coordinate: { x: number, y: number, layer: number }): number {
+    public static EncodeCoordinate(coordinate: {x: number; y: number; layer: number}): number {
         if (!coordinate) {
             return -1;
         }
         return TileCoordinate.Encode(coordinate.x, coordinate.y, coordinate.layer);
+    }
+
+    public static AddFileId(encodedCoordinate: number, fileId: number) {
+        return encodedCoordinate + fileId * TileCoordinate.FileIdOffset;
+    }
+
+    public static RemoveFileId(encodedCoordinate: number) {
+        return encodedCoordinate % TileCoordinate.FileIdOffset;
     }
 
     // Encoding a tile combines x, y and layer coordinates into a single number. This makes it more efficient
@@ -32,19 +42,23 @@ export class TileCoordinate {
         }
 
         // encode using bitwise operators
-        return ((layer << 24) | (y << 12) | x);
+        return (layer << 24) | (y << 12) | x;
     }
 
     // Decode all three coordinates from an encoded coordinate using bitwise operators
     public static Decode(encodedCoordinate: number): TileCoordinate {
         const x = encodedCoordinate & 4095;
-        const layer = encodedCoordinate >> 24 & 127;
-        const y = encodedCoordinate >> 12 & 4095;
+        const layer = (encodedCoordinate >> 24) & 127;
+        const y = (encodedCoordinate >> 12) & 4095;
         return new TileCoordinate(x, y, layer);
     }
 
     // Shortcut to quickly decode just the layer from an encoded coordinate
     public static GetLayer(encodedCoordinate: number): number {
-        return encodedCoordinate >> 24 & 127;
+        return (encodedCoordinate >> 24) & 127;
+    }
+
+    public static GetFileId(encodedCoordinate: number): number {
+        return Math.floor(encodedCoordinate / TileCoordinate.FileIdOffset);
     }
 }

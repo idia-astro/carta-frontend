@@ -1,8 +1,12 @@
 @import "../../../../node_modules/@blueprintjs/core/lib/scss/variables.scss";
 
 .preference-dialog {
+    .bp3-tabs {
+        height: 100%;
+    }
+
     .bp3-tab-panel {
-        height: 25em;
+        height: 100%;
         overflow: auto;
         width: 100%;
     }
@@ -18,6 +22,7 @@
     }
 
     .log-event-panel .bp3-form-group .bp3-label {
+        width: auto !important;
         text-align: left;
     }
 
@@ -27,13 +32,17 @@
         }
     }
 
+    .log-event-header {
+        margin: 0;
+    }
+
     .log-event-list {
         .bp3-form-content {
             display: flex;
             flex-wrap: wrap;
 
             .log-event-checkbox {
-                width: 255px;
+                width: 265px;
                 margin-bottom: 0;
             }
         }
