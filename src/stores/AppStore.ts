@@ -35,7 +35,7 @@ import {
     SpectralProfileStore,
     WidgetsStore
 } from ".";
-import {distinct, getColorForTheme, GetRequiredTiles, getTimestamp, mapToObject} from "utilities";
+import {clamp, distinct, getColorForTheme, GetRequiredTiles, getTimestamp, mapToObject} from "utilities";
 import {ApiService, BackendService, ConnectionStatus, ScriptingService, TileService, TileStreamDetails} from "services";
 import {FrameView, Point2D, PresetLayout, ProtobufProcessing, Theme, TileCoordinate, WCSMatchingType} from "models";
 import {HistogramWidgetStore, RegionWidgetStore, SpatialProfileWidgetStore, SpectralProfileWidgetStore, StatsWidgetStore, StokesAnalysisWidgetStore} from "./widgets";
@@ -98,6 +98,9 @@ export class AppStore {
     // ImageViewer
     @observable activeLayer: ImageViewLayer;
     @observable cursorFrozen: boolean;
+    @observable numImageColumns: number;
+    @observable numImageRows: number;
+    @observable currentImagePage: number;
 
     private appContainer: HTMLElement;
     private fileCounter = 0;
@@ -1123,6 +1126,9 @@ export class AppStore {
 
         this.frames = [];
         this.activeFrame = null;
+        this.numImageRows = 0;
+        this.numImageColumns = 0;
+        this.currentImagePage = 0;
         this.contourDataSource = null;
         this.syncFrameToContour = true;
         this.syncContourToFrame = true;
@@ -1926,6 +1932,39 @@ export class AppStore {
         this.setSpatialMatchingEnabled(this.activeFrame, spatial);
         this.setSpectralMatchingEnabled(this.activeFrame, spectral);
     };
+
+    @computed get numImagePages() {
+        if (this.numImageColumns <= 0 || this.numImageRows <= 0 || !this.frames) {
+            return 0;
+        }
+
+        const imagesPerPage = this.numImageColumns * this.numImageRows;
+        return Math.ceil(this.frames.length / imagesPerPage);
+    }
+
+    @action setImageGridSize(rows: number, columns: number) {
+        this.numImageRows = Math.max(1, rows);
+        this.numImageColumns = Math.max(1, columns);
+    }
+
+    @action setImagePage(page: number) {
+        this.currentImagePage = clamp(page, 0, this.numImagePages);
+    }
+
+    @computed get visibleFrames(): FrameStore[] {
+        if (!this.frames?.length) {
+            return [];
+        }
+
+        const pageIndex = clamp(this.currentImagePage, 0, this.numImagePages);
+        const firstFrameIndex = pageIndex * this.numImageRows * this.numImageColumns;
+        const indexUpperBound = Math.min(firstFrameIndex + this.numImageRows * this.numImageColumns, this.frames.length);
+        const pageFrames = [];
+        for (let i = firstFrameIndex; i < indexUpperBound; i++) {
+            pageFrames.push(this.frames[i]);
+        }
+        return pageFrames;
+    }
 
     exportImage = (): boolean => {
         if (this.activeFrame) {

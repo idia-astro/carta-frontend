@@ -1282,12 +1282,14 @@ export class OverlayStore {
     }
 
     @computed get renderWidth() {
-        const renderWidth = this.viewWidth - this.paddingLeft - this.paddingRight;
-        return renderWidth > 1 ? renderWidth : 1; // return value > 1 to prevent crashing
+        const numColumns = AppStore.Instance.numImageColumns;
+        const renderWidth = this.viewWidth / numColumns - this.paddingLeft - this.paddingRight;
+        return Math.max(renderWidth, 1); // return value > 1 to prevent crashing
     }
 
     @computed get renderHeight() {
-        const renderHeight = this.viewHeight - this.paddingTop - this.paddingBottom;
-        return renderHeight > 1 ? renderHeight : 1; // return value > 1 to prevent crashing
+        const numRows = AppStore.Instance.numImageRows;
+        const renderHeight = this.viewHeight / numRows - this.paddingTop - this.paddingBottom;
+        return Math.max(renderHeight, 1); // return value > 1 to prevent crashing
     }
 }
