@@ -1,15 +1,16 @@
 import * as React from "react";
 import * as AST from "ast_wrapper";
-import * as _ from "lodash";
 import {observer} from "mobx-react";
 import {AppStore, FrameStore, OverlayStore} from "stores";
-import {CursorInfo, SPECTRAL_TYPE_STRING} from "models";
+import {CursorInfo, Point2D, SPECTRAL_TYPE_STRING} from "models";
 import "./OverlayComponent.scss";
 
 export class OverlayComponentProps {
     overlaySettings: OverlayStore;
     frame: FrameStore;
     docked: boolean;
+    gridSize: Point2D;
+    imageLocation: Point2D;
     onClicked?: (cursorInfo: CursorInfo) => void;
     onZoomed?: (cursorInfo: CursorInfo, delta: number) => void;
 }
@@ -20,13 +21,13 @@ export class OverlayComponent extends React.Component<OverlayComponentProps> {
 
     componentDidMount() {
         if (this.canvas) {
-            this.renderCanvas();
+            requestAnimationFrame(this.renderCanvas);
         }
     }
 
     componentDidUpdate() {
         if (this.canvas) {
-            this.renderCanvas();
+            requestAnimationFrame(this.renderCanvas);
         }
     }
 
@@ -35,7 +36,7 @@ export class OverlayComponent extends React.Component<OverlayComponentProps> {
         this.canvas.height = this.props.overlaySettings.viewHeight * devicePixelRatio;
     }
 
-    renderCanvas = _.throttle(() => {
+    renderCanvas = () => {
         const settings = this.props.overlaySettings;
         const frame = this.props.frame;
         const pixelRatio = devicePixelRatio;
@@ -100,7 +101,7 @@ export class OverlayComponent extends React.Component<OverlayComponentProps> {
             AST.deleteObject(tempWcsInfo);
             AST.clearLastErrorMessage();
         }
-    }, 50);
+    };
 
     render() {
         const styleString = this.props.overlaySettings.styleString;
@@ -146,6 +147,11 @@ export class OverlayComponent extends React.Component<OverlayComponentProps> {
         if (this.props.docked) {
             className += " docked";
         }
-        return <canvas className={className} id="overlay-canvas" key={styleString} ref={ref => (this.canvas = ref)} />;
+
+        const width = `${100 / this.props.gridSize.x}%`;
+        const height = `${100 / this.props.gridSize.y}%`;
+        const top = `${(100 * this.props.imageLocation.y) / this.props.gridSize.y}%`;
+        const left = `${(100 * this.props.imageLocation.x) / this.props.gridSize.x}%`;
+        return <canvas className={className} style={{width, height, top, left}} id="overlay-canvas" key={styleString} ref={ref => (this.canvas = ref)} />;
     }
 }

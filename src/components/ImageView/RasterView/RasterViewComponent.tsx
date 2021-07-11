@@ -8,8 +8,10 @@ import {RasterTile, TILE_SIZE, TileService, TileWebGLService} from "services";
 import "./RasterViewComponent.scss";
 
 export class RasterViewComponentProps {
-    docked: boolean;
     frame: FrameStore;
+    docked: boolean;
+    gridSize: Point2D;
+    imageLocation: Point2D;
     pixelHighlightValue: number;
 }
 
@@ -336,23 +338,18 @@ export class RasterViewComponent extends React.Component<RasterViewComponentProp
         /* eslint-enable @typescript-eslint/no-unused-vars */
 
         const padding = appStore.overlayStore.padding;
+        const width = frame?.isRenderable ? frame.renderWidth || 1 : 1;
+        const height = frame?.isRenderable ? frame.renderHeight || 1 : 1;
+        const top = `calc(${(100 * this.props.imageLocation.y) / this.props.gridSize.y}% + ${padding.top}px)`;
+        const left = `calc(${(100 * this.props.imageLocation.x) / this.props.gridSize.x}% + ${padding.left}px)`;
+
         let className = "raster-div";
         if (this.props.docked) {
             className += " docked";
         }
         return (
             <div className={className}>
-                <canvas
-                    className="raster-canvas"
-                    id="raster-canvas"
-                    ref={ref => (this.canvas = ref)}
-                    style={{
-                        top: padding.top,
-                        left: padding.left,
-                        width: frame && frame.isRenderable ? frame.renderWidth || 1 : 1,
-                        height: frame && frame.isRenderable ? frame.renderHeight || 1 : 1
-                    }}
-                />
+                <canvas className="raster-canvas" id="raster-canvas" ref={ref => (this.canvas = ref)} style={{top, left, width, height}} />
             </div>
         );
     }

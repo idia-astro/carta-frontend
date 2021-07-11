@@ -3,11 +3,14 @@ import * as React from "react";
 import {AppStore, ContourDashMode, FrameStore, RenderConfigStore} from "stores";
 import {ceilToPower, GL, rotate2D, scale2D, subtract2D} from "utilities";
 import {ContourWebGLService} from "services";
+import {Point2D} from "models";
 import "./ContourViewComponent.scss";
 
 export interface ContourViewComponentProps {
     docked: boolean;
     frame: FrameStore;
+    gridSize: Point2D;
+    imageLocation: Point2D;
 }
 
 @observer
@@ -210,23 +213,18 @@ export class ContourViewComponent extends React.Component<ContourViewComponentPr
         /* eslint-enable @typescript-eslint/no-unused-vars */
 
         const padding = appStore.overlayStore.padding;
+        const width = baseFrame?.isRenderable ? baseFrame.renderWidth || 1 : 1;
+        const height = baseFrame?.isRenderable ? baseFrame.renderHeight || 1 : 1;
+        const top = `calc(${(100 * this.props.imageLocation.y) / this.props.gridSize.y}% + ${padding.top}px)`;
+        const left = `calc(${(100 * this.props.imageLocation.x) / this.props.gridSize.x}% + ${padding.left}px)`;
+
         let className = "contour-div";
         if (this.props.docked) {
             className += " docked";
         }
         return (
             <div className={className}>
-                <canvas
-                    id="contour-canvas"
-                    className="contour-canvas"
-                    ref={ref => (this.canvas = ref)}
-                    style={{
-                        top: padding.top,
-                        left: padding.left,
-                        width: baseFrame ? baseFrame.renderWidth || 1 : 1,
-                        height: baseFrame ? baseFrame.renderHeight || 1 : 1
-                    }}
-                />
+                <canvas id="contour-canvas" className="contour-canvas" ref={ref => (this.canvas = ref)} style={{width, height, top, left}} />
             </div>
         );
     }

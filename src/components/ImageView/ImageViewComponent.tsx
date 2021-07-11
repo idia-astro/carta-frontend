@@ -213,7 +213,7 @@ export class ImageViewComponent extends React.Component<WidgetProps> {
 
             divContents = (
                 <React.Fragment>
-                    {appStore.activeFrame.valid && <OverlayComponent frame={appStore.activeFrame} overlaySettings={overlayStore} docked={this.props.docked} />}
+                    {appStore.activeFrame.valid && <OverlayComponent frame={appStore.activeFrame} overlaySettings={overlayStore} docked={this.props.docked} gridSize={appStore.imageGridSize} imageLocation={{x: 1, y: 0}} />}
                     {appStore.activeFrame.cursorInfo && (
                         <CursorOverlayComponent
                             cursorInfo={appStore.activeFrame.cursorInfo}
@@ -272,8 +272,8 @@ export class ImageViewComponent extends React.Component<WidgetProps> {
 
         return (
             <div className="image-view-div" onMouseOver={this.onMouseEnter} onMouseLeave={this.onMouseLeave}>
-                <RasterViewComponent frame={appStore.activeFrame} docked={this.props.docked} pixelHighlightValue={this.pixelHighlightValue} />
-                <ContourViewComponent frame={appStore.activeFrame} docked={this.props.docked} />
+                <RasterViewComponent frame={appStore.activeFrame} docked={this.props.docked} pixelHighlightValue={this.pixelHighlightValue} gridSize={appStore.imageGridSize} imageLocation={{x: 1, y: 0}} />
+                <ContourViewComponent frame={appStore.activeFrame} docked={this.props.docked} gridSize={appStore.imageGridSize} imageLocation={{x: 1, y: 0}} />
                 {divContents}
                 <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} refreshMode={"throttle"} refreshRate={33}></ReactResizeDetector>
             </div>

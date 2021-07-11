@@ -35,7 +35,7 @@ import {
     SpectralProfileStore,
     WidgetsStore
 } from ".";
-import {clamp, distinct, getColorForTheme, GetRequiredTiles, getTimestamp, mapToObject} from "utilities";
+import {clamp, distinct, divide2D, getColorForTheme, GetRequiredTiles, getTimestamp, mapToObject} from "utilities";
 import {ApiService, BackendService, ConnectionStatus, ScriptingService, TileService, TileStreamDetails} from "services";
 import {FrameView, Point2D, PresetLayout, ProtobufProcessing, Theme, TileCoordinate, WCSMatchingType} from "models";
 import {HistogramWidgetStore, RegionWidgetStore, SpatialProfileWidgetStore, SpectralProfileWidgetStore, StatsWidgetStore, StokesAnalysisWidgetStore} from "./widgets";
@@ -98,9 +98,9 @@ export class AppStore {
     // ImageViewer
     @observable activeLayer: ImageViewLayer;
     @observable cursorFrozen: boolean;
-    @observable numImageColumns: number;
-    @observable numImageRows: number;
+    @observable imageGridSize: Point2D;
     @observable currentImagePage: number;
+    private imageViewDimensions: Point2D;
 
     private appContainer: HTMLElement;
     private fileCounter = 0;
@@ -125,7 +125,9 @@ export class AppStore {
 
     // Image view
     @action setImageViewDimensions = (w: number, h: number) => {
-        this.overlayStore.setViewDimension(w, h);
+        this.imageViewDimensions = {x: w, y: h};
+        const perPanelDimensions = divide2D(this.imageViewDimensions, this.imageGridSize);
+        this.overlayStore.setViewDimension(perPanelDimensions.x, perPanelDimensions.y);
     };
 
     // Image toolbar
@@ -1126,9 +1128,9 @@ export class AppStore {
 
         this.frames = [];
         this.activeFrame = null;
-        this.numImageRows = 0;
-        this.numImageColumns = 0;
+        this.imageGridSize = {x: 2, y: 2};
         this.currentImagePage = 0;
+        this.imageViewDimensions = {x: 1, y: 1};
         this.contourDataSource = null;
         this.syncFrameToContour = true;
         this.syncContourToFrame = true;
@@ -1934,17 +1936,18 @@ export class AppStore {
     };
 
     @computed get numImagePages() {
-        if (this.numImageColumns <= 0 || this.numImageRows <= 0 || !this.frames) {
+        if (this.imageGridSize.x <= 0 || this.imageGridSize.y <= 0 || !this.frames) {
             return 0;
         }
 
-        const imagesPerPage = this.numImageColumns * this.numImageRows;
+        const imagesPerPage = this.imageGridSize.x * this.imageGridSize.y;
         return Math.ceil(this.frames.length / imagesPerPage);
     }
 
-    @action setImageGridSize(rows: number, columns: number) {
-        this.numImageRows = Math.max(1, rows);
-        this.numImageColumns = Math.max(1, columns);
+    @action setImageGridSize(columns: number, rows: number) {
+        this.imageGridSize = {x: Math.max(1, columns), y: Math.max(1, rows)};
+        const perPanelDimensions = divide2D(this.imageViewDimensions, this.imageGridSize);
+        this.overlayStore.setViewDimension(perPanelDimensions.x, perPanelDimensions.y);
     }
 
     @action setImagePage(page: number) {
@@ -1957,8 +1960,9 @@ export class AppStore {
         }
 
         const pageIndex = clamp(this.currentImagePage, 0, this.numImagePages);
-        const firstFrameIndex = pageIndex * this.numImageRows * this.numImageColumns;
-        const indexUpperBound = Math.min(firstFrameIndex + this.numImageRows * this.numImageColumns, this.frames.length);
+        const imagesPerPage = this.imageGridSize.x * this.imageGridSize.y;
+        const firstFrameIndex = pageIndex * imagesPerPage;
+        const indexUpperBound = Math.min(firstFrameIndex + imagesPerPage, this.frames.length);
         const pageFrames = [];
         for (let i = firstFrameIndex; i < indexUpperBound; i++) {
             pageFrames.push(this.frames[i]);

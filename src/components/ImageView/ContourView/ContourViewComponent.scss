@@ -1,6 +1,5 @@
 .contour-div {
-    position: absolute;
-    left: 0;
+    position: relative;
 
     &.docked {
         z-index: 3;
